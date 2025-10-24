@@ -5,11 +5,12 @@ import { useEffect, useState, Suspense } from 'react';
 import Image from 'next/image';
 import { SearchResult } from '@/types';
 import PlatformIcon from '@/components/PlatformIcon';
+import { detectRegion } from '@/lib/region';
 
 function AlbumPageContent() {
   const searchParams = useSearchParams();
   const spotifyUrl = searchParams.get('spotifyUrl') || '';
-  const region = searchParams.get('region') || 'GB';
+  const region = detectRegion();
 
   const [results, setResults] = useState<SearchResult | null>(null);
   const [loading, setLoading] = useState(true);

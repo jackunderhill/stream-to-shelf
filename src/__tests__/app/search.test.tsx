@@ -30,6 +30,11 @@ jest.mock('@/components/SearchBar', () => {
   };
 });
 
+// Mock region detection
+jest.mock('@/lib/region', () => ({
+  detectRegion: jest.fn(() => 'US'),
+}));
+
 describe('SearchPage', () => {
   const mockSearchParams = {
     get: jest.fn(),
@@ -51,7 +56,6 @@ describe('SearchPage', () => {
     mockSearchParams.get.mockImplementation((key: string) => {
       if (key === 'artist') return 'Radiohead';
       if (key === 'album') return null;
-      if (key === 'region') return 'US';
       return null;
     });
 
@@ -68,7 +72,6 @@ describe('SearchPage', () => {
     mockSearchParams.get.mockImplementation((key: string) => {
       if (key === 'artist') return 'Radiohead';
       if (key === 'album') return null;
-      if (key === 'region') return 'US';
       return null;
     });
 
@@ -116,7 +119,6 @@ describe('SearchPage', () => {
     mockSearchParams.get.mockImplementation((key: string) => {
       if (key === 'artist') return 'Radiohead';
       if (key === 'album') return null;
-      if (key === 'region') return 'US';
       return null;
     });
 
@@ -136,7 +138,6 @@ describe('SearchPage', () => {
     mockSearchParams.get.mockImplementation((key: string) => {
       if (key === 'artist') return 'Radiohead';
       if (key === 'album') return null;
-      if (key === 'region') return 'US';
       return null;
     });
 
@@ -193,7 +194,6 @@ describe('SearchPage', () => {
     mockSearchParams.get.mockImplementation((key: string) => {
       if (key === 'artist') return 'Radiohead';
       if (key === 'album') return null;
-      if (key === 'region') return 'US';
       return null;
     });
 
@@ -206,7 +206,6 @@ describe('SearchPage', () => {
     mockSearchParams.get.mockImplementation((key: string) => {
       if (key === 'artist') return 'The Beatles';
       if (key === 'album') return null;
-      if (key === 'region') return 'US';
       return null;
     });
 
@@ -221,7 +220,6 @@ describe('SearchPage', () => {
     mockSearchParams.get.mockImplementation((key: string) => {
       if (key === 'artist') return 'Radiohead';
       if (key === 'album') return null;
-      if (key === 'region') return 'US';
       return null;
     });
 
@@ -242,7 +240,6 @@ describe('SearchPage', () => {
     mockSearchParams.get.mockImplementation((key: string) => {
       if (key === 'artist') return 'UnknownArtist123';
       if (key === 'album') return null;
-      if (key === 'region') return 'US';
       return null;
     });
 
@@ -267,7 +264,6 @@ describe('SearchPage', () => {
     mockSearchParams.get.mockImplementation((key: string) => {
       if (key === 'artist') return 'Radiohead';
       if (key === 'album') return 'OK Computer';
-      if (key === 'region') return 'US';
       return null;
     });
 
@@ -308,7 +304,6 @@ describe('SearchPage', () => {
     mockSearchParams.get.mockImplementation((key: string) => {
       if (key === 'artist') return null;
       if (key === 'album') return null;
-      if (key === 'region') return 'US';
       return null;
     });
 

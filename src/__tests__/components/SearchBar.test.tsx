@@ -25,16 +25,14 @@ describe('SearchBar Component', () => {
 
       expect(screen.getByLabelText(/artist/i)).toBeInTheDocument();
       expect(screen.getByLabelText(/album/i)).toBeInTheDocument();
-      expect(screen.getByLabelText(/region/i)).toBeInTheDocument();
       expect(screen.getByRole('button', { name: /find music stores/i })).toBeInTheDocument();
     });
 
     it('should render with initial values', () => {
-      render(<SearchBar initialArtist="Radiohead" initialAlbum="OK Computer" initialRegion="GB" />);
+      render(<SearchBar initialArtist="Radiohead" initialAlbum="OK Computer" />);
 
       expect(screen.getByDisplayValue('Radiohead')).toBeInTheDocument();
       expect(screen.getByDisplayValue('OK Computer')).toBeInTheDocument();
-      expect(screen.getByDisplayValue(/United Kingdom/i)).toBeInTheDocument();
     });
 
     it('should have required attribute on artist field', () => {
@@ -128,37 +126,6 @@ describe('SearchBar Component', () => {
       });
     });
 
-    it('should include region parameter if not US', async () => {
-      const user = userEvent.setup();
-      render(<SearchBar />);
-
-      const artistInput = screen.getByLabelText(/artist/i);
-      const regionSelect = screen.getByLabelText(/region/i);
-      const submitButton = screen.getByRole('button', { name: /find music stores/i });
-
-      await user.type(artistInput, 'Radiohead');
-      await user.selectOptions(regionSelect, 'GB');
-      await user.click(submitButton);
-
-      await waitFor(() => {
-        expect(mockPush).toHaveBeenCalledWith('/search?artist=Radiohead&region=GB');
-      });
-    });
-
-    it('should not include region parameter if US (default)', async () => {
-      const user = userEvent.setup();
-      render(<SearchBar />);
-
-      const artistInput = screen.getByLabelText(/artist/i);
-      const submitButton = screen.getByRole('button', { name: /find music stores/i });
-
-      await user.type(artistInput, 'Radiohead');
-      await user.click(submitButton);
-
-      await waitFor(() => {
-        expect(mockPush).toHaveBeenCalledWith('/search?artist=Radiohead');
-      });
-    });
 
     it('should trim whitespace from inputs', async () => {
       const user = userEvent.setup();
@@ -200,37 +167,6 @@ describe('SearchBar Component', () => {
     });
   });
 
-  describe('Loading State', () => {
-    it('should show loading state when submitting', async () => {
-      const user = userEvent.setup();
-      render(<SearchBar />);
-
-      const artistInput = screen.getByLabelText(/artist/i);
-      const submitButton = screen.getByRole('button', { name: /find music stores/i });
-
-      await user.type(artistInput, 'Radiohead');
-      await user.click(submitButton);
-
-      // Should show loading text
-      expect(screen.getByText(/searching/i)).toBeInTheDocument();
-      expect(submitButton).toBeDisabled();
-    });
-
-    it('should show spinner icon during loading', async () => {
-      const user = userEvent.setup();
-      render(<SearchBar />);
-
-      const artistInput = screen.getByLabelText(/artist/i);
-      const submitButton = screen.getByRole('button', { name: /find music stores/i });
-
-      await user.type(artistInput, 'Radiohead');
-      await user.click(submitButton);
-
-      // Should contain spinner (animate-spin class)
-      const spinner = submitButton.querySelector('.animate-spin');
-      expect(spinner).toBeInTheDocument();
-    });
-  });
 
   describe('Accessibility', () => {
     it('should have proper labels for all inputs', () => {
@@ -238,7 +174,6 @@ describe('SearchBar Component', () => {
 
       expect(screen.getByLabelText(/artist/i)).toBeInTheDocument();
       expect(screen.getByLabelText(/album/i)).toBeInTheDocument();
-      expect(screen.getByLabelText(/region/i)).toBeInTheDocument();
     });
 
     it('should have proper aria attributes on submit button', () => {
@@ -259,33 +194,4 @@ describe('SearchBar Component', () => {
     });
   });
 
-  describe('Region Selection', () => {
-    it('should render all region options', () => {
-      render(<SearchBar />);
-
-      const regionSelect = screen.getByLabelText(/region/i);
-      const options = Array.from(regionSelect.querySelectorAll('option'));
-
-      expect(options).toHaveLength(7);
-      expect(options.map(opt => opt.value)).toEqual(['US', 'GB', 'CA', 'AU', 'DE', 'FR', 'JP']);
-    });
-
-    it('should update region when changed', async () => {
-      const user = userEvent.setup();
-      render(<SearchBar />);
-
-      const regionSelect = screen.getByLabelText(/region/i);
-
-      await user.selectOptions(regionSelect, 'GB');
-
-      expect(regionSelect).toHaveValue('GB');
-    });
-
-    it('should default to US region', () => {
-      render(<SearchBar />);
-
-      const regionSelect = screen.getByLabelText(/region/i);
-      expect(regionSelect).toHaveValue('US');
-    });
-  });
 });

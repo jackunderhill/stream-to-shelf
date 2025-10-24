@@ -6,12 +6,13 @@ import SearchBar from '@/components/SearchBar';
 import Link from 'next/link';
 import Image from 'next/image';
 import { SpotifySearchResponse } from '@/types';
+import { detectRegion } from '@/lib/region';
 
 function SearchPageContent() {
   const searchParams = useSearchParams();
   const artist = searchParams.get('artist') || '';
   const album = searchParams.get('album') || '';
-  const region = searchParams.get('region') || 'GB';
+  const region = detectRegion();
 
   const [results, setResults] = useState<SpotifySearchResponse | null>(null);
   const [loading, setLoading] = useState(true);
@@ -137,7 +138,7 @@ function SearchPageContent() {
                 {results.results.map((albumItem) => (
                   <Link
                     key={albumItem.id}
-                    href={`/album?spotifyUrl=${encodeURIComponent(albumItem.external_urls.spotify)}&region=${region}`}
+                    href={`/album?spotifyUrl=${encodeURIComponent(albumItem.external_urls.spotify)}`}
                     className="group"
                     aria-label={`View buy links for ${albumItem.name} by ${albumItem.artists.map(a => a.name).join(', ')}`}
                   >

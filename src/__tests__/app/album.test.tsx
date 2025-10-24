@@ -16,6 +16,11 @@ jest.mock('next/image', () => ({
   },
 }));
 
+// Mock region detection
+jest.mock('@/lib/region', () => ({
+  detectRegion: jest.fn(() => 'US'),
+}));
+
 describe('AlbumPage', () => {
   const mockSearchParams = {
     get: jest.fn(),
@@ -36,7 +41,6 @@ describe('AlbumPage', () => {
   it('renders loading state initially', () => {
     mockSearchParams.get.mockImplementation((key: string) => {
       if (key === 'spotifyUrl') return 'https://open.spotify.com/album/123';
-      if (key === 'region') return 'US';
       return null;
     });
 
@@ -52,7 +56,6 @@ describe('AlbumPage', () => {
   it('fetches and displays album buy links', async () => {
     mockSearchParams.get.mockImplementation((key: string) => {
       if (key === 'spotifyUrl') return 'https://open.spotify.com/album/123';
-      if (key === 'region') return 'US';
       return null;
     });
 
@@ -97,7 +100,6 @@ describe('AlbumPage', () => {
   it('displays error message when fetch fails', async () => {
     mockSearchParams.get.mockImplementation((key: string) => {
       if (key === 'spotifyUrl') return 'https://open.spotify.com/album/123';
-      if (key === 'region') return 'US';
       return null;
     });
 
@@ -116,7 +118,6 @@ describe('AlbumPage', () => {
   it('aborts fetch request when component unmounts', async () => {
     mockSearchParams.get.mockImplementation((key: string) => {
       if (key === 'spotifyUrl') return 'https://open.spotify.com/album/123';
-      if (key === 'region') return 'US';
       return null;
     });
 
@@ -172,7 +173,6 @@ describe('AlbumPage', () => {
     // Initial render
     mockSearchParams.get.mockImplementation((key: string) => {
       if (key === 'spotifyUrl') return 'https://open.spotify.com/album/123';
-      if (key === 'region') return 'US';
       return null;
     });
 
@@ -198,7 +198,6 @@ describe('AlbumPage', () => {
   it('does not show error when request is aborted (AbortError)', async () => {
     mockSearchParams.get.mockImplementation((key: string) => {
       if (key === 'spotifyUrl') return 'https://open.spotify.com/album/123';
-      if (key === 'region') return 'US';
       return null;
     });
 
@@ -218,7 +217,6 @@ describe('AlbumPage', () => {
   it('handles no buy links gracefully', async () => {
     mockSearchParams.get.mockImplementation((key: string) => {
       if (key === 'spotifyUrl') return 'https://open.spotify.com/album/123';
-      if (key === 'region') return 'US';
       return null;
     });
 
@@ -246,7 +244,6 @@ describe('AlbumPage', () => {
   it('does not fetch when spotifyUrl is missing', () => {
     mockSearchParams.get.mockImplementation((key: string) => {
       if (key === 'spotifyUrl') return null;
-      if (key === 'region') return 'US';
       return null;
     });
 
