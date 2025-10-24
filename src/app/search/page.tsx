@@ -23,6 +23,9 @@ function SearchPageContent() {
       return;
     }
 
+    // Create AbortController to cancel request if component unmounts or dependencies change
+    const abortController = new AbortController();
+
     const fetchResults = async () => {
       setLoading(true);
       setError(null);
@@ -33,7 +36,10 @@ function SearchPageContent() {
           ...(album && { album }),
         });
 
-        const response = await fetch(`/api/spotify-search?${params}`);
+        const response = await fetch(
+          `/api/spotify-search?${params}`,
+          { signal: abortController.signal }
+        );
         if (!response.ok) {
           throw new Error('Search failed');
         }
@@ -41,6 +47,10 @@ function SearchPageContent() {
         const data = await response.json();
         setResults(data);
       } catch (err) {
+        // Don't show error if request was aborted (component unmounted or deps changed)
+        if (err instanceof Error && err.name === 'AbortError') {
+          return;
+        }
         setError('Failed to fetch results. Please try again.');
         console.error(err);
       } finally {
@@ -49,6 +59,11 @@ function SearchPageContent() {
     };
 
     fetchResults();
+
+    // Cleanup function: abort the request if component unmounts or dependencies change
+    return () => {
+      abortController.abort();
+    };
   }, [artist, album]);
 
   return (

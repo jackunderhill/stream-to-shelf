@@ -21,13 +21,19 @@ function AlbumPageContent() {
       return;
     }
 
+    // Create AbortController to cancel request if component unmounts or dependencies change
+    const abortController = new AbortController();
+
     const fetchBuyLinks = async () => {
       setLoading(true);
       setError(null);
 
       try {
         // Use the existing search API but pass the Spotify URL directly
-        const response = await fetch(`/api/songlink?url=${encodeURIComponent(spotifyUrl)}&region=${region}`);
+        const response = await fetch(
+          `/api/songlink?url=${encodeURIComponent(spotifyUrl)}&region=${region}`,
+          { signal: abortController.signal }
+        );
         if (!response.ok) {
           throw new Error('Failed to fetch buy links');
         }
@@ -35,6 +41,10 @@ function AlbumPageContent() {
         const data = await response.json();
         setResults(data);
       } catch (err) {
+        // Don't show error if request was aborted (component unmounted or deps changed)
+        if (err instanceof Error && err.name === 'AbortError') {
+          return;
+        }
         setError('Failed to fetch buy links. Please try again.');
         console.error(err);
       } finally {
@@ -43,6 +53,11 @@ function AlbumPageContent() {
     };
 
     fetchBuyLinks();
+
+    // Cleanup function: abort the request if component unmounts or dependencies change
+    return () => {
+      abortController.abort();
+    };
   }, [spotifyUrl, region]);
 
   return (
