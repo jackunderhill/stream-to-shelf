@@ -69,6 +69,18 @@ const nextConfig: NextConfig = {
         port: '',
         pathname: '/img/**',
       },
+      {
+        protocol: 'http',
+        hostname: 'cdn-images.dzcdn.net', // Deezer artwork
+        port: '',
+        pathname: '/images/**',
+      },
+      {
+        protocol: 'https',
+        hostname: 'cdn-images.dzcdn.net', // Deezer artwork (HTTPS)
+        port: '',
+        pathname: '/images/**',
+      },
     ],
   },
 };

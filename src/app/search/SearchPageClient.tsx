@@ -133,10 +133,20 @@ export default function SearchPageClient() {
             {/* Album Grid */}
             {results.results.length > 0 && (
               <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-6">
-                {results.results.map((albumItem) => (
+                {results.results.map((albumItem) => {
+                  // Build URL with preview data for better UX while loading
+                  const params = new URLSearchParams({
+                    spotifyUrl: albumItem.external_urls.spotify,
+                    // Preview data from search results
+                    previewTitle: albumItem.name,
+                    previewArtist: albumItem.artists.map(a => a.name).join(', '),
+                    ...(albumItem.images[0]?.url && { previewArtwork: albumItem.images[0].url }),
+                  });
+
+                  return (
                   <Link
                     key={albumItem.id}
-                    href={`/album?spotifyUrl=${encodeURIComponent(albumItem.external_urls.spotify)}`}
+                    href={`/album?${params.toString()}`}
                     className="group"
                     aria-label={`View buy links for ${albumItem.name} by ${albumItem.artists.map(a => a.name).join(', ')}`}
                   >
@@ -168,7 +178,8 @@ export default function SearchPageClient() {
                       </div>
                     </article>
                   </Link>
-                ))}
+                  );
+                })}
               </div>
             )}
           </div>

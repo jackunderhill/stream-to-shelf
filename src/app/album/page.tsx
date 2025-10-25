@@ -1,6 +1,7 @@
 import { Metadata } from 'next';
 import { Suspense } from 'react';
 import AlbumPageClient from './AlbumPageClient';
+import AlbumPageFallback from './AlbumPageFallback';
 import { SearchResult } from '@/types';
 
 type Props = {
@@ -106,18 +107,20 @@ export async function generateMetadata({ searchParams }: Props): Promise<Metadat
   };
 }
 
-export default function AlbumPage() {
+export default async function AlbumPage({ searchParams }: Props) {
+  const params = await searchParams;
+  const previewTitle = typeof params.previewTitle === 'string' ? params.previewTitle : undefined;
+  const previewArtist = typeof params.previewArtist === 'string' ? params.previewArtist : undefined;
+  const previewArtwork = typeof params.previewArtwork === 'string' ? params.previewArtwork : undefined;
+
   return (
     <Suspense
       fallback={
-        <div className="min-h-screen bg-gradient-to-b from-gray-900 via-gray-800 to-gray-900">
-          <div className="container mx-auto px-4 py-8">
-            <div className="text-center py-12" role="status" aria-live="polite">
-              <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500" aria-hidden="true"></div>
-              <p className="mt-4 text-gray-400">Loading album...</p>
-            </div>
-          </div>
-        </div>
+        <AlbumPageFallback
+          previewTitle={previewTitle}
+          previewArtist={previewArtist}
+          previewArtwork={previewArtwork}
+        />
       }
     >
       <AlbumPageClient />

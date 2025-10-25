@@ -12,8 +12,31 @@ export default function AlbumPageClient() {
   const spotifyUrl = searchParams.get('spotifyUrl') || '';
   const region = detectRegion();
 
-  const [results, setResults] = useState<SearchResult | null>(null);
+  // Get preview data from URL params (if coming from search)
+  const previewTitle = searchParams.get('previewTitle');
+  const previewArtist = searchParams.get('previewArtist');
+  const previewArtwork = searchParams.get('previewArtwork');
+
+  // Track if we have preview data (to distinguish from real data)
+  const hasPreviewData = previewTitle && previewArtist;
+
+  // Initialize state with preview data if available
+  const [results, setResults] = useState<SearchResult | null>(() => {
+    // If we have preview data, create a minimal SearchResult object to show immediately
+    if (hasPreviewData) {
+      return {
+        links: [],
+        metadata: {
+          title: previewTitle,
+          artistName: previewArtist,
+          artwork: previewArtwork || undefined,
+        },
+      };
+    }
+    return null;
+  });
   const [loading, setLoading] = useState(true);
+  const [hasFetchedData, setHasFetchedData] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -41,12 +64,14 @@ export default function AlbumPageClient() {
 
         const data = await response.json();
         setResults(data);
+        setHasFetchedData(true);
       } catch (err) {
         // Don't show error if request was aborted (component unmounted or deps changed)
         if (err instanceof Error && err.name === 'AbortError') {
           return;
         }
         setError('Failed to fetch buy links. Please try again.');
+        setHasFetchedData(true);
         console.error(err);
       } finally {
         setLoading(false);
@@ -78,8 +103,28 @@ export default function AlbumPageClient() {
           </button>
         </div>
 
-        {/* Loading State */}
-        {loading && (
+        {/* Show album info immediately if we have results (preview or real data) */}
+        {results?.metadata && (
+          <div className="bg-gray-800/50 rounded-lg p-8 mb-8 flex flex-col items-center text-center">
+            {results.metadata.artwork && (
+              <Image
+                src={results.metadata.artwork}
+                alt={`${results.metadata.title} album cover`}
+                width={256}
+                height={256}
+                className="w-64 h-64 rounded-lg shadow-2xl mb-6"
+                priority
+              />
+            )}
+            <div>
+              <h1 className="text-5xl font-bold mb-3">{results.metadata.title}</h1>
+              <p className="text-3xl text-gray-400">{results.metadata.artistName}</p>
+            </div>
+          </div>
+        )}
+
+        {/* Loading State - show spinner while fetching buy links OR when we have preview but no real data yet */}
+        {(loading || (hasPreviewData && !hasFetchedData)) && !error && (
           <div className="text-center py-12" role="status" aria-live="polite">
             <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500" aria-hidden="true"></div>
             <p className="mt-4 text-gray-400">Finding where to buy...</p>
@@ -93,31 +138,12 @@ export default function AlbumPageClient() {
           </div>
         )}
 
-        {/* Results */}
+        {/* Buy Links - only show when finished loading */}
         {!loading && !error && results && (
           <div>
-            {/* Album Header */}
-            {results.metadata && (
-              <div className="bg-gray-800/50 rounded-lg p-8 mb-8 flex flex-col items-center text-center">
-                {results.metadata.artwork && (
-                  <Image
-                    src={results.metadata.artwork}
-                    alt={`${results.metadata.title} album cover`}
-                    width={256}
-                    height={256}
-                    className="w-64 h-64 rounded-lg shadow-2xl mb-6"
-                    priority
-                  />
-                )}
-                <div>
-                  <h1 className="text-5xl font-bold mb-3">{results.metadata.title}</h1>
-                  <p className="text-3xl text-gray-400">{results.metadata.artistName}</p>
-                </div>
-              </div>
-            )}
 
-            {/* No Buy Links */}
-            {results.links.length === 0 && (
+            {/* No Buy Links - only show if we've actually fetched data and got no links */}
+            {results.links.length === 0 && hasFetchedData && (
               <div className="bg-gray-800/50 rounded-lg p-8 text-center">
                 <p className="text-gray-400 text-lg">
                   No buy links found for this album.
