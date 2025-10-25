@@ -18,7 +18,7 @@ export const metadata: Metadata = {
   openGraph: {
     type: "website",
     locale: "en_US",
-    url: "https://streamtoshelf.com",
+    url: process.env.NEXT_PUBLIC_SITE_URL || "https://stream-to-shelf.vercel.app",
     siteName: "StreamToShelf",
     title: "StreamToShelf – Find Where to Buy Music",
     description: "Find Where to Buy Music – Downloads, CDs, Vinyl & More",
@@ -47,12 +47,12 @@ export default function RootLayout({
               "@type": "WebSite",
               "name": "StreamToShelf",
               "description": "Find Where to Buy Music – Downloads, CDs, Vinyl & More",
-              "url": "https://streamtoshelf.com",
+              "url": process.env.NEXT_PUBLIC_SITE_URL || "https://stream-to-shelf.vercel.app",
               "potentialAction": {
                 "@type": "SearchAction",
                 "target": {
                   "@type": "EntryPoint",
-                  "urlTemplate": "https://streamtoshelf.com/search?artist={search_term_string}"
+                  "urlTemplate": `${process.env.NEXT_PUBLIC_SITE_URL || "https://stream-to-shelf.vercel.app"}/search?artist={search_term_string}`
                 },
                 "query-input": "required name=search_term_string"
               }

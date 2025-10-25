@@ -10,7 +10,7 @@ jest.mock('next/navigation', () => ({
 // Mock next/image
 jest.mock('next/image', () => ({
   __esModule: true,
-  default: (props: any) => {
+  default: (props: React.ImgHTMLAttributes<HTMLImageElement>) => {
     // eslint-disable-next-line @next/next/no-img-element, jsx-a11y/alt-text
     return <img {...props} />;
   },
@@ -128,7 +128,7 @@ describe('AlbumPage', () => {
     };
 
     // Mock AbortController
-    global.AbortController = jest.fn(() => mockAbortController) as any;
+    global.AbortController = jest.fn(() => mockAbortController) as unknown as typeof AbortController;
 
     (global.fetch as jest.Mock).mockImplementation(
       () => new Promise(() => {}) // Never resolves
@@ -164,7 +164,7 @@ describe('AlbumPage', () => {
         signal: { aborted: false },
         abort: abortMock,
       };
-    }) as any;
+    }) as unknown as typeof AbortController;
 
     (global.fetch as jest.Mock).mockImplementation(
       () => new Promise(() => {}) // Never resolves
