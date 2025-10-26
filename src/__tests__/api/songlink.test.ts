@@ -1,3 +1,6 @@
+/**
+ * @jest-environment node
+ */
 import { GET } from '@/app/api/songlink/route';
 import { NextRequest } from 'next/server';
 

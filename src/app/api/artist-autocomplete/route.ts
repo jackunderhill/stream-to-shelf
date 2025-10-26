@@ -15,6 +15,11 @@ interface SpotifyArtist {
 
 let spotifyTokenCache: { token: string; expires: number } | null = null;
 
+// Export for testing purposes
+export function resetTokenCache() {
+  spotifyTokenCache = null;
+}
+
 /**
  * Fetch with timeout
  */
