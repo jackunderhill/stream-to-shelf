@@ -2,6 +2,7 @@
 
 import { useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
+import ArtistAutocomplete from './ArtistAutocomplete';
 
 interface SearchBarProps {
   initialArtist?: string;
@@ -35,13 +36,10 @@ export default function SearchBar({ initialArtist = '', initialAlbum = '' }: Sea
             <label htmlFor="artist" className="block text-sm font-medium text-gray-300 mb-2">
               Artist *
             </label>
-            <input
-              id="artist"
-              type="text"
+            <ArtistAutocomplete
               value={artist}
-              onChange={(e) => setArtist(e.target.value)}
+              onChange={setArtist}
               placeholder="Enter artist name..."
-              className="w-full px-4 py-3 bg-gray-800 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors"
               required
               maxLength={100}
             />
