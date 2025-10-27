@@ -111,7 +111,7 @@ describe('useArtistAutocomplete', () => {
       abort: abortMock,
     };
 
-    global.AbortController = jest.fn(() => mockAbortController) as any;
+    global.AbortController = jest.fn(() => mockAbortController) as unknown as typeof AbortController;
 
     (global.fetch as jest.Mock).mockImplementation(() => new Promise(() => {}));
 

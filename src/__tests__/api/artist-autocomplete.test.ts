@@ -11,6 +11,7 @@ describe('/api/artist-autocomplete', () => {
     jest.clearAllMocks();
     resetTokenCache(); // Clear the token cache between tests
     global.fetch = jest.fn();
+    jest.spyOn(console, 'error').mockImplementation(() => {});
     process.env = {
       ...originalEnv,
       SPOTIFY_CLIENT_ID: 'test_client_id',

@@ -1,6 +1,16 @@
 import { render, screen, waitFor } from '@testing-library/react';
+import '@testing-library/jest-dom';
 import { useSearchParams } from 'next/navigation';
 import AlbumPageClient from '@/app/album/AlbumPageClient';
+import { SearchPreviewProvider } from '@/contexts/SearchPreviewContext';
+import React from 'react';
+
+interface AlbumPreview {
+  title: string;
+  artist: string;
+  artwork?: string;
+  spotifyUrl: string;
+}
 
 // Mock next/navigation
 jest.mock('next/navigation', () => ({
@@ -21,6 +31,23 @@ jest.mock('@/lib/region', () => ({
   detectRegion: jest.fn(() => 'US'),
 }));
 
+// Test wrapper with context provider
+function TestWrapper({ children }: { children: React.ReactNode }) {
+  return <SearchPreviewProvider>{children}</SearchPreviewProvider>;
+}
+
+// Custom wrapper that provides preview data
+function createWrapperWithPreview(previewData: AlbumPreview) {
+  return function WrapperWithPreview({ children }: { children: React.ReactNode }) {
+    const [preview] = React.useState(previewData);
+    return (
+      <SearchPreviewProvider initialData={preview}>
+        {children}
+      </SearchPreviewProvider>
+    );
+  };
+}
+
 describe('AlbumPageClient', () => {
   const mockSearchParams = {
     get: jest.fn(),
@@ -28,6 +55,7 @@ describe('AlbumPageClient', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
+    jest.spyOn(console, 'error').mockImplementation(() => {});
     (useSearchParams as jest.Mock).mockReturnValue(mockSearchParams);
 
     // Mock fetch globally
@@ -40,7 +68,8 @@ describe('AlbumPageClient', () => {
 
   it('renders loading state initially', () => {
     mockSearchParams.get.mockImplementation((key: string) => {
-      if (key === 'spotifyUrl') return 'https://open.spotify.com/album/123';
+      if (key === 'artist') return 'Radiohead';
+      if (key === 'album') return 'OK Computer';
       return null;
     });
 
@@ -48,18 +77,34 @@ describe('AlbumPageClient', () => {
       () => new Promise(() => {}) // Never resolves
     );
 
-    render(<AlbumPageClient />);
+    render(<AlbumPageClient />, { wrapper: TestWrapper });
 
     expect(screen.getByText('Finding where to buy...')).toBeInTheDocument();
   });
 
   it('fetches and displays album buy links', async () => {
     mockSearchParams.get.mockImplementation((key: string) => {
-      if (key === 'spotifyUrl') return 'https://open.spotify.com/album/123';
+      if (key === 'artist') return 'Radiohead';
+      if (key === 'album') return 'OK Computer';
       return null;
     });
 
-    const mockResponse = {
+    // Mock the Spotify search API response (to get the Spotify URL)
+    const mockSearchResponse = {
+      artist: 'Radiohead',
+      results: [
+        {
+          id: '1',
+          name: 'OK Computer',
+          external_urls: { spotify: 'https://open.spotify.com/album/123' },
+          images: [{ url: 'https://example.com/ok.jpg' }],
+          artists: [{ name: 'Radiohead' }],
+        },
+      ],
+    };
+
+    // Mock the songlink API response (buy links)
+    const mockSonglinkResponse = {
       links: [
         {
           platform: 'itunes',
@@ -81,12 +126,18 @@ describe('AlbumPageClient', () => {
       },
     };
 
-    (global.fetch as jest.Mock).mockResolvedValueOnce({
-      ok: true,
-      json: async () => mockResponse,
-    });
+    // Mock both API calls in sequence
+    (global.fetch as jest.Mock)
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => mockSearchResponse,
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => mockSonglinkResponse,
+      });
 
-    render(<AlbumPageClient />);
+    render(<AlbumPageClient />, { wrapper: TestWrapper });
 
     await waitFor(() => {
       expect(screen.getByText('Test Album')).toBeInTheDocument();
@@ -99,7 +150,8 @@ describe('AlbumPageClient', () => {
 
   it('displays error message when fetch fails', async () => {
     mockSearchParams.get.mockImplementation((key: string) => {
-      if (key === 'spotifyUrl') return 'https://open.spotify.com/album/123';
+      if (key === 'artist') return 'Radiohead';
+      if (key === 'album') return 'OK Computer';
       return null;
     });
 
@@ -108,7 +160,7 @@ describe('AlbumPageClient', () => {
       status: 500,
     });
 
-    render(<AlbumPageClient />);
+    render(<AlbumPageClient />, { wrapper: TestWrapper });
 
     await waitFor(() => {
       expect(screen.getByText('Failed to fetch buy links. Please try again.')).toBeInTheDocument();
@@ -117,7 +169,8 @@ describe('AlbumPageClient', () => {
 
   it('aborts fetch request when component unmounts', async () => {
     mockSearchParams.get.mockImplementation((key: string) => {
-      if (key === 'spotifyUrl') return 'https://open.spotify.com/album/123';
+      if (key === 'artist') return 'Radiohead';
+      if (key === 'album') return 'OK Computer';
       return null;
     });
 
@@ -134,11 +187,11 @@ describe('AlbumPageClient', () => {
       () => new Promise(() => {}) // Never resolves
     );
 
-    const { unmount } = render(<AlbumPageClient />);
+    const { unmount } = render(<AlbumPageClient />, { wrapper: TestWrapper });
 
-    // Verify fetch was called with abort signal
+    // Verify fetch was called with abort signal (for spotify-search)
     expect(global.fetch).toHaveBeenCalledWith(
-      expect.stringContaining('/api/songlink'),
+      expect.stringContaining('/api/spotify-search'),
       expect.objectContaining({
         signal: mockAbortController.signal,
       })
@@ -151,7 +204,7 @@ describe('AlbumPageClient', () => {
     expect(abortMock).toHaveBeenCalled();
   });
 
-  it('aborts previous request when spotifyUrl changes', async () => {
+  it('aborts previous request when artist or album changes', async () => {
     const abortMocks: jest.Mock[] = [];
     let controllerCount = 0;
 
@@ -172,19 +225,20 @@ describe('AlbumPageClient', () => {
 
     // Initial render
     mockSearchParams.get.mockImplementation((key: string) => {
-      if (key === 'spotifyUrl') return 'https://open.spotify.com/album/123';
+      if (key === 'artist') return 'Radiohead';
+      if (key === 'album') return 'OK Computer';
       return null;
     });
 
-    const { rerender } = render(<AlbumPageClient />);
+    const { rerender } = render(<AlbumPageClient />, { wrapper: TestWrapper });
 
     expect(controllerCount).toBe(1);
     expect(abortMocks[0]).not.toHaveBeenCalled();
 
-    // Change spotifyUrl
+    // Change album
     mockSearchParams.get.mockImplementation((key: string) => {
-      if (key === 'spotifyUrl') return 'https://open.spotify.com/album/456';
-      if (key === 'region') return 'US';
+      if (key === 'artist') return 'Radiohead';
+      if (key === 'album') return 'Kid A';
       return null;
     });
 
@@ -197,7 +251,8 @@ describe('AlbumPageClient', () => {
 
   it('does not show error when request is aborted (AbortError)', async () => {
     mockSearchParams.get.mockImplementation((key: string) => {
-      if (key === 'spotifyUrl') return 'https://open.spotify.com/album/123';
+      if (key === 'artist') return 'Radiohead';
+      if (key === 'album') return 'OK Computer';
       return null;
     });
 
@@ -206,7 +261,7 @@ describe('AlbumPageClient', () => {
 
     (global.fetch as jest.Mock).mockRejectedValueOnce(abortError);
 
-    render(<AlbumPageClient />);
+    render(<AlbumPageClient />, { wrapper: TestWrapper });
 
     // Wait for any potential error message
     await waitFor(() => {
@@ -216,11 +271,27 @@ describe('AlbumPageClient', () => {
 
   it('handles no buy links gracefully', async () => {
     mockSearchParams.get.mockImplementation((key: string) => {
-      if (key === 'spotifyUrl') return 'https://open.spotify.com/album/123';
+      if (key === 'artist') return 'Radiohead';
+      if (key === 'album') return 'OK Computer';
       return null;
     });
 
-    const mockResponse = {
+    // Mock the Spotify search API response
+    const mockSearchResponse = {
+      artist: 'Radiohead',
+      results: [
+        {
+          id: '1',
+          name: 'OK Computer',
+          external_urls: { spotify: 'https://open.spotify.com/album/123' },
+          images: [{ url: 'https://example.com/ok.jpg' }],
+          artists: [{ name: 'Radiohead' }],
+        },
+      ],
+    };
+
+    // Mock songlink response with no links
+    const mockSonglinkResponse = {
       links: [],
       metadata: {
         title: 'Test Album',
@@ -229,25 +300,31 @@ describe('AlbumPageClient', () => {
       },
     };
 
-    (global.fetch as jest.Mock).mockResolvedValueOnce({
-      ok: true,
-      json: async () => mockResponse,
-    });
+    (global.fetch as jest.Mock)
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => mockSearchResponse,
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => mockSonglinkResponse,
+      });
 
-    render(<AlbumPageClient />);
+    render(<AlbumPageClient />, { wrapper: TestWrapper });
 
     await waitFor(() => {
       expect(screen.getByText('No buy links found for this album.')).toBeInTheDocument();
     });
   });
 
-  it('does not fetch when spotifyUrl is missing', () => {
+  it('does not fetch when artist or album is missing', () => {
     mockSearchParams.get.mockImplementation((key: string) => {
-      if (key === 'spotifyUrl') return null;
+      if (key === 'artist') return 'Radiohead';
+      if (key === 'album') return null; // Missing album
       return null;
     });
 
-    render(<AlbumPageClient />);
+    render(<AlbumPageClient />, { wrapper: TestWrapper });
 
     expect(global.fetch).not.toHaveBeenCalled();
   });
@@ -255,10 +332,8 @@ describe('AlbumPageClient', () => {
   describe('Preview Data Functionality', () => {
     it('displays preview data immediately when provided', () => {
       mockSearchParams.get.mockImplementation((key: string) => {
-        if (key === 'spotifyUrl') return 'https://open.spotify.com/album/123';
-        if (key === 'previewTitle') return 'Preview Album';
-        if (key === 'previewArtist') return 'Preview Artist';
-        if (key === 'previewArtwork') return 'https://example.com/preview.jpg';
+        if (key === 'artist') return 'Preview Artist';
+        if (key === 'album') return 'Preview Album';
         return null;
       });
 
@@ -266,7 +341,14 @@ describe('AlbumPageClient', () => {
         () => new Promise(() => {}) // Never resolves
       );
 
-      render(<AlbumPageClient />);
+      const PreviewWrapper = createWrapperWithPreview({
+        title: 'Preview Album',
+        artist: 'Preview Artist',
+        artwork: 'https://example.com/preview.jpg',
+        spotifyUrl: 'https://open.spotify.com/album/123',
+      });
+
+      render(<AlbumPageClient />, { wrapper: PreviewWrapper });
 
       // Preview data should be visible immediately, even while loading
       expect(screen.getByText('Preview Album')).toBeInTheDocument();
@@ -279,9 +361,8 @@ describe('AlbumPageClient', () => {
 
     it('shows loading spinner when preview data is shown but not yet fetched', () => {
       mockSearchParams.get.mockImplementation((key: string) => {
-        if (key === 'spotifyUrl') return 'https://open.spotify.com/album/123';
-        if (key === 'previewTitle') return 'Preview Album';
-        if (key === 'previewArtist') return 'Preview Artist';
+        if (key === 'artist') return 'Preview Artist';
+        if (key === 'album') return 'Preview Album';
         return null;
       });
 
@@ -289,7 +370,13 @@ describe('AlbumPageClient', () => {
         () => new Promise(() => {}) // Never resolves
       );
 
-      render(<AlbumPageClient />);
+      const PreviewWrapper = createWrapperWithPreview({
+        title: 'Preview Album',
+        artist: 'Preview Artist',
+        spotifyUrl: 'https://open.spotify.com/album/123',
+      });
+
+      render(<AlbumPageClient />, { wrapper: PreviewWrapper });
 
       // Should show preview data AND loading spinner
       expect(screen.getByText('Preview Album')).toBeInTheDocument();
@@ -298,9 +385,8 @@ describe('AlbumPageClient', () => {
 
     it('does not show "no buy links" message for preview data with empty links', async () => {
       mockSearchParams.get.mockImplementation((key: string) => {
-        if (key === 'spotifyUrl') return 'https://open.spotify.com/album/123';
-        if (key === 'previewTitle') return 'Preview Album';
-        if (key === 'previewArtist') return 'Preview Artist';
+        if (key === 'artist') return 'Preview Artist';
+        if (key === 'album') return 'Preview Album';
         return null;
       });
 
@@ -309,7 +395,13 @@ describe('AlbumPageClient', () => {
         () => new Promise(() => {})
       );
 
-      render(<AlbumPageClient />);
+      const PreviewWrapper = createWrapperWithPreview({
+        title: 'Preview Album',
+        artist: 'Preview Artist',
+        spotifyUrl: 'https://open.spotify.com/album/123',
+      });
+
+      render(<AlbumPageClient />, { wrapper: PreviewWrapper });
 
       // Should NOT show "no buy links" message even though preview data has empty links
       expect(screen.queryByText('No buy links found for this album.')).not.toBeInTheDocument();
@@ -320,10 +412,8 @@ describe('AlbumPageClient', () => {
 
     it('replaces preview data with actual fetched data', async () => {
       mockSearchParams.get.mockImplementation((key: string) => {
-        if (key === 'spotifyUrl') return 'https://open.spotify.com/album/123';
-        if (key === 'previewTitle') return 'Preview Album';
-        if (key === 'previewArtist') return 'Preview Artist';
-        if (key === 'previewArtwork') return 'https://example.com/preview.jpg';
+        if (key === 'artist') return 'Preview Artist';
+        if (key === 'album') return 'Preview Album';
         return null;
       });
 
@@ -348,7 +438,14 @@ describe('AlbumPageClient', () => {
         json: async () => mockResponse,
       });
 
-      render(<AlbumPageClient />);
+      const PreviewWrapper = createWrapperWithPreview({
+        title: 'Preview Album',
+        artist: 'Preview Artist',
+        artwork: 'https://example.com/preview.jpg',
+        spotifyUrl: 'https://open.spotify.com/album/123',
+      });
+
+      render(<AlbumPageClient />, { wrapper: PreviewWrapper });
 
       // Preview data visible initially
       expect(screen.getByText('Preview Album')).toBeInTheDocument();
@@ -368,9 +465,8 @@ describe('AlbumPageClient', () => {
 
     it('shows "no buy links" message only after fetching completes with empty results', async () => {
       mockSearchParams.get.mockImplementation((key: string) => {
-        if (key === 'spotifyUrl') return 'https://open.spotify.com/album/123';
-        if (key === 'previewTitle') return 'Preview Album';
-        if (key === 'previewArtist') return 'Preview Artist';
+        if (key === 'artist') return 'Preview Artist';
+        if (key === 'album') return 'Preview Album';
         return null;
       });
 
@@ -388,7 +484,13 @@ describe('AlbumPageClient', () => {
         json: async () => mockResponse,
       });
 
-      render(<AlbumPageClient />);
+      const PreviewWrapper = createWrapperWithPreview({
+        title: 'Preview Album',
+        artist: 'Preview Artist',
+        spotifyUrl: 'https://open.spotify.com/album/123',
+      });
+
+      render(<AlbumPageClient />, { wrapper: PreviewWrapper });
 
       // Should not show message initially
       expect(screen.queryByText('No buy links found for this album.')).not.toBeInTheDocument();
@@ -404,12 +506,28 @@ describe('AlbumPageClient', () => {
 
     it('works without preview data (standard loading flow)', async () => {
       mockSearchParams.get.mockImplementation((key: string) => {
-        if (key === 'spotifyUrl') return 'https://open.spotify.com/album/123';
+        if (key === 'artist') return 'Radiohead';
+        if (key === 'album') return 'OK Computer';
         // No preview data
         return null;
       });
 
-      const mockResponse = {
+      // Mock the Spotify search API response
+      const mockSearchResponse = {
+        artist: 'Radiohead',
+        results: [
+          {
+            id: '1',
+            name: 'OK Computer',
+            external_urls: { spotify: 'https://open.spotify.com/album/123' },
+            images: [{ url: 'https://example.com/ok.jpg' }],
+            artists: [{ name: 'Radiohead' }],
+          },
+        ],
+      };
+
+      // Mock songlink response
+      const mockSonglinkResponse = {
         links: [
           {
             platform: 'itunes',
@@ -425,12 +543,17 @@ describe('AlbumPageClient', () => {
         },
       };
 
-      (global.fetch as jest.Mock).mockResolvedValueOnce({
-        ok: true,
-        json: async () => mockResponse,
-      });
+      (global.fetch as jest.Mock)
+        .mockResolvedValueOnce({
+          ok: true,
+          json: async () => mockSearchResponse,
+        })
+        .mockResolvedValueOnce({
+          ok: true,
+          json: async () => mockSonglinkResponse,
+        });
 
-      render(<AlbumPageClient />);
+      render(<AlbumPageClient />, { wrapper: TestWrapper });
 
       // Should show loading initially (no preview data)
       expect(screen.getByText('Finding where to buy...')).toBeInTheDocument();
@@ -446,10 +569,8 @@ describe('AlbumPageClient', () => {
 
     it('handles preview data with partial information (missing artwork)', () => {
       mockSearchParams.get.mockImplementation((key: string) => {
-        if (key === 'spotifyUrl') return 'https://open.spotify.com/album/123';
-        if (key === 'previewTitle') return 'Preview Album';
-        if (key === 'previewArtist') return 'Preview Artist';
-        // No previewArtwork
+        if (key === 'artist') return 'Preview Artist';
+        if (key === 'album') return 'Preview Album';
         return null;
       });
 
@@ -457,14 +578,21 @@ describe('AlbumPageClient', () => {
         () => new Promise(() => {})
       );
 
-      render(<AlbumPageClient />);
+      const PreviewWrapper = createWrapperWithPreview({
+        title: 'Preview Album',
+        artist: 'Preview Artist',
+        spotifyUrl: 'https://open.spotify.com/album/123',
+        // No artwork
+      });
+
+      render(<AlbumPageClient />, { wrapper: PreviewWrapper });
 
       // Preview title and artist should be visible
       expect(screen.getByText('Preview Album')).toBeInTheDocument();
       expect(screen.getByText('Preview Artist')).toBeInTheDocument();
 
       // No artwork should be rendered
-      expect(screen.queryByAltText('Preview Album by Preview Artist')).not.toBeInTheDocument();
+      expect(screen.queryByAltText('Preview Album album cover')).not.toBeInTheDocument();
     });
   });
 });

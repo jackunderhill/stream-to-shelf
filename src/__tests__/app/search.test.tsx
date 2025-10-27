@@ -1,6 +1,8 @@
 import { render, screen, waitFor } from '@testing-library/react';
 import { useSearchParams } from 'next/navigation';
 import SearchPage from '@/app/search/page';
+import { SearchPreviewProvider } from '@/contexts/SearchPreviewContext';
+import React from 'react';
 
 // Mock next/navigation
 jest.mock('next/navigation', () => ({
@@ -37,6 +39,11 @@ jest.mock('@/lib/region', () => ({
   detectRegion: jest.fn(() => 'US'),
 }));
 
+// Test wrapper with context provider
+function TestWrapper({ children }: { children: React.ReactNode }) {
+  return <SearchPreviewProvider>{children}</SearchPreviewProvider>;
+}
+
 describe('SearchPage', () => {
   const mockSearchParams = {
     get: jest.fn(),
@@ -44,6 +51,7 @@ describe('SearchPage', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
+    jest.spyOn(console, 'error').mockImplementation(() => {});
     (useSearchParams as jest.Mock).mockReturnValue(mockSearchParams);
 
     // Mock fetch globally
@@ -65,7 +73,7 @@ describe('SearchPage', () => {
       () => new Promise(() => {}) // Never resolves
     );
 
-    render(<SearchPage />);
+    render(<SearchPage />, { wrapper: TestWrapper });
 
     expect(screen.getByText('Searching for albums...')).toBeInTheDocument();
   });
@@ -106,7 +114,7 @@ describe('SearchPage', () => {
       json: async () => mockResponse,
     });
 
-    render(<SearchPage />);
+    render(<SearchPage />, { wrapper: TestWrapper });
 
     await waitFor(() => {
       expect(screen.getByText('Results for "Radiohead"')).toBeInTheDocument();
@@ -129,7 +137,7 @@ describe('SearchPage', () => {
       status: 500,
     });
 
-    render(<SearchPage />);
+    render(<SearchPage />, { wrapper: TestWrapper });
 
     await waitFor(() => {
       expect(screen.getByText('Failed to fetch results. Please try again.')).toBeInTheDocument();
@@ -156,7 +164,7 @@ describe('SearchPage', () => {
       () => new Promise(() => {}) // Never resolves
     );
 
-    const { unmount } = render(<SearchPage />);
+    const { unmount } = render(<SearchPage />, { wrapper: TestWrapper });
 
     // Verify fetch was called with abort signal
     expect(global.fetch).toHaveBeenCalledWith(
@@ -199,7 +207,7 @@ describe('SearchPage', () => {
       return null;
     });
 
-    const { rerender } = render(<SearchPage />);
+    const { rerender } = render(<SearchPage />, { wrapper: TestWrapper });
 
     expect(controllerCount).toBe(1);
     expect(abortMocks[0]).not.toHaveBeenCalled();
@@ -230,7 +238,7 @@ describe('SearchPage', () => {
 
     (global.fetch as jest.Mock).mockRejectedValueOnce(abortError);
 
-    render(<SearchPage />);
+    render(<SearchPage />, { wrapper: TestWrapper });
 
     // Wait for any potential error message
     await waitFor(() => {
@@ -255,7 +263,7 @@ describe('SearchPage', () => {
       json: async () => mockResponse,
     });
 
-    render(<SearchPage />);
+    render(<SearchPage />, { wrapper: TestWrapper });
 
     await waitFor(() => {
       expect(screen.getByText('No albums found for "UnknownArtist123"')).toBeInTheDocument();
@@ -290,7 +298,7 @@ describe('SearchPage', () => {
       json: async () => mockResponse,
     });
 
-    render(<SearchPage />);
+    render(<SearchPage />, { wrapper: TestWrapper });
 
     await waitFor(() => {
       expect(screen.getByText('Results for "Radiohead" - "OK Computer"')).toBeInTheDocument();
@@ -309,7 +317,7 @@ describe('SearchPage', () => {
       return null;
     });
 
-    render(<SearchPage />);
+    render(<SearchPage />, { wrapper: TestWrapper });
 
     expect(global.fetch).not.toHaveBeenCalled();
     expect(screen.queryByText('Searching for albums...')).not.toBeInTheDocument();

@@ -12,7 +12,12 @@ const mockPath = path as jest.Mocked<typeof path>;
 describe('Blog utilities', () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    jest.spyOn(console, 'error').mockImplementation(() => {});
     mockPath.join.mockReturnValue('/mocked/path');
+  });
+
+  afterEach(() => {
+    jest.restoreAllMocks();
   });
 
   describe('getBlogPostSlugs', () => {
