@@ -2,8 +2,10 @@ import { NextRequest, NextResponse } from 'next/server';
 import { SearchResult, SonglinkResponse, PlatformLink, Region } from '@/types';
 
 const SONGLINK_API_URL = 'https://api.song.link/v1-alpha.1/links';
-const DISCOGS_TOKEN = process.env.DISCOGS_TOKEN;
 const API_TIMEOUT = 10000; // 10 seconds
+
+// Get Discogs token at runtime to support test environment setup
+const getDiscogsToken = () => process.env.DISCOGS_TOKEN;
 
 /**
  * Fetch with timeout
@@ -38,7 +40,8 @@ const PLATFORM_CONFIG: Record<string, { name: string; category: 'download' | 'ph
  * Search Discogs API to get the best matching release
  */
 async function getDiscogsRelease(artist: string, album: string): Promise<string | null> {
-  if (!DISCOGS_TOKEN) {
+  const discogsToken = getDiscogsToken();
+  if (!discogsToken) {
     console.log('Discogs token not configured');
     return null;
   }
@@ -50,7 +53,7 @@ async function getDiscogsRelease(artist: string, album: string): Promise<string 
 
     const response = await fetchWithTimeout(url, {
       headers: {
-        'Authorization': `Discogs token=${DISCOGS_TOKEN}`,
+        'Authorization': `Discogs token=${discogsToken}`,
         'User-Agent': 'StreamToShelf/1.0'
       }
     });

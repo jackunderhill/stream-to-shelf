@@ -2,23 +2,21 @@ import { Metadata } from 'next';
 import { Suspense } from 'react';
 import AlbumPageClient from './AlbumPageClient';
 import AlbumPageFallback from './AlbumPageFallback';
-import { SearchResult } from '@/types';
 
 type Props = {
   searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
 };
 
-async function fetchAlbumData(spotifyUrl: string): Promise<SearchResult | null> {
+async function fetchAlbumArtwork(artist: string, album: string): Promise<string | null> {
   try {
-    // In development, use localhost; in production use Vercel URL
     const baseUrl = process.env.NODE_ENV === 'development'
       ? 'http://localhost:3000'
       : (process.env.NEXT_PUBLIC_SITE_URL || 'https://stream-to-shelf.vercel.app');
 
     const response = await fetch(
-      `${baseUrl}/api/songlink?url=${encodeURIComponent(spotifyUrl)}&region=US`,
+      `${baseUrl}/api/spotify-search?artist=${encodeURIComponent(artist)}&album=${encodeURIComponent(album)}`,
       {
-        next: { revalidate: 3600 }, // Cache for 1 hour
+        next: { revalidate: 3600 },
         cache: 'force-cache',
       }
     );
@@ -27,82 +25,84 @@ async function fetchAlbumData(spotifyUrl: string): Promise<SearchResult | null> 
       return null;
     }
 
-    return await response.json();
+    const data = await response.json();
+    if (data.results && data.results.length > 0) {
+      return data.results[0].images?.[0]?.url || null;
+    }
+    return null;
   } catch (error) {
-    console.error('Error fetching album data for metadata:', error);
+    console.error('Error fetching album artwork for metadata:', error);
     return null;
   }
 }
 
 export async function generateMetadata({ searchParams }: Props): Promise<Metadata> {
   const params = await searchParams;
-  const spotifyUrl = typeof params.spotifyUrl === 'string' ? params.spotifyUrl : '';
+  const artist = typeof params.artist === 'string' ? params.artist : '';
+  const album = typeof params.album === 'string' ? params.album : '';
 
-  if (!spotifyUrl) {
-    return {
-      title: 'Album Details – StreamToShelf',
-      description: 'Find where to buy this album from legitimate music stores.',
-    };
-  }
+  const pageTitle = artist && album ? `${album} by ${artist} – StreamToShelf` : 'Album Details – StreamToShelf';
+  const pageDescription = artist && album ? `Find where to buy ${album} by ${artist} from legitimate music stores.` : 'Find where to buy this album from legitimate music stores.';
 
-  // Fetch album data for rich metadata
-  const albumData = await fetchAlbumData(spotifyUrl);
-
-  if (!albumData?.metadata) {
-    return {
-      title: 'Album Details – StreamToShelf',
-      description: 'Find where to buy this album from legitimate music stores.',
-    };
-  }
-
-  const { title, artistName, artwork } = albumData.metadata;
-  const pageTitle = `${title} by ${artistName} – Buy Music | StreamToShelf`;
-  const description = `Find where to buy ${title} by ${artistName}. Available as digital downloads, vinyl, CD, and more from legitimate music stores.`;
-
-  // Use environment variable for base URL, fallback to Vercel URL
   const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://stream-to-shelf.vercel.app';
 
-  // Build OG image URL using URL constructor for proper encoding
-  const ogImageUrl = new URL('/api/og', baseUrl);
-  ogImageUrl.searchParams.set('title', title);
-  ogImageUrl.searchParams.set('artist', artistName);
+  // Build URLs using string concatenation to avoid URL constructor issues in metadata generation
+  const pageUrl = artist && album
+    ? `${baseUrl}/album?artist=${encodeURIComponent(artist)}&album=${encodeURIComponent(album)}`
+    : `${baseUrl}/album`;
 
-  const pageUrl = new URL('/album', baseUrl);
-  pageUrl.searchParams.set('spotifyUrl', spotifyUrl);
+  if (!artist || !album) {
+    return {
+      title: pageTitle,
+      description: pageDescription,
+    };
+  }
 
-  // Build images array - use artwork directly first (for WhatsApp/Signal), then generated OG image
-  const images = [];
-  if (artwork) {
-    images.push({
-      url: artwork,
+  // Try to fetch actual album artwork from Spotify
+  let albumArtworkUrl: string | null = null;
+  try {
+    albumArtworkUrl = await fetchAlbumArtwork(artist, album);
+  } catch (error) {
+    console.error('Failed to fetch album artwork:', error);
+  }
+
+  // Use actual album artwork if available, otherwise fall back to generated image
+  const ogImages = [];
+  if (albumArtworkUrl) {
+    ogImages.push({
+      url: albumArtworkUrl,
       width: 640,
       height: 640,
-      alt: `${title} by ${artistName} - Album Cover`,
+      alt: `${album} by ${artist}`,
     });
   }
-  images.push({
-    url: ogImageUrl.toString(),
+
+  // Always include generated image as well for better compatibility
+  const ogImageUrl = `${baseUrl}/api/og?title=${encodeURIComponent(album)}&artist=${encodeURIComponent(artist)}`;
+  ogImages.push({
+    url: ogImageUrl,
     width: 1200,
     height: 630,
-    alt: `${title} by ${artistName}`,
+    alt: `${album} by ${artist}`,
   });
 
+  // Return metadata with artist/album info
   return {
     title: pageTitle,
-    description,
+    description: pageDescription,
     openGraph: {
       title: pageTitle,
-      description,
-      url: pageUrl.toString(),
+      description: pageDescription,
+      url: pageUrl,
       siteName: 'StreamToShelf',
-      images,
+      images: ogImages,
       type: 'website',
     },
     twitter: {
       card: 'summary_large_image',
       title: pageTitle,
-      description,
-      images: [ogImageUrl.toString()],
+      description: pageDescription,
+      images: [albumArtworkUrl || ogImageUrl],
     },
   };
 }

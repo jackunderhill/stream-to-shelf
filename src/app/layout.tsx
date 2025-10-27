@@ -4,6 +4,7 @@ import Link from "next/link";
 import { Analytics } from "@vercel/analytics/react";
 import "./globals.css";
 import { KofiSupport } from "@/components/KofiSupport";
+import { SearchPreviewProvider } from "@/contexts/SearchPreviewContext";
 
 const inter = Inter({
   subsets: ["latin"],
@@ -61,17 +62,19 @@ export default function RootLayout({
         />
       </head>
       <body className={`font-sans antialiased bg-gray-900 text-white min-h-screen`}>
-        <header className="border-b border-gray-800">
-          <div className="container mx-auto px-4 py-4">
-            <h1 className="text-2xl font-bold">
-              <Link href="/" className="text-white hover:text-gray-300 transition-colors">
-                StreamToShelf
-              </Link>
-            </h1>
-          </div>
-        </header>
-        <main>{children}</main>
-        <KofiSupport />
+        <SearchPreviewProvider>
+          <header className="border-b border-gray-800">
+            <div className="container mx-auto px-4 py-4">
+              <h1 className="text-2xl font-bold">
+                <Link href="/" className="text-white hover:text-gray-300 transition-colors">
+                  StreamToShelf
+                </Link>
+              </h1>
+            </div>
+          </header>
+          <main>{children}</main>
+          <KofiSupport />
+        </SearchPreviewProvider>
         <Analytics />
       </body>
     </html>

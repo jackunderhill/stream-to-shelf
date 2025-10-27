@@ -6,8 +6,10 @@ import SearchBar from '@/components/SearchBar';
 import Link from 'next/link';
 import Image from 'next/image';
 import { SpotifySearchResponse } from '@/types';
+import { useSearchPreview } from '@/contexts/SearchPreviewContext';
 
 export default function SearchPageClient() {
+  const { setPreviewData } = useSearchPreview();
   const searchParams = useSearchParams();
   const artist = searchParams.get('artist') || '';
   const album = searchParams.get('album') || '';
@@ -134,21 +136,25 @@ export default function SearchPageClient() {
             {results.results.length > 0 && (
               <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-6">
                 {results.results.map((albumItem) => {
-                  // Build URL with preview data for better UX while loading
-                  const params = new URLSearchParams({
-                    spotifyUrl: albumItem.external_urls.spotify,
-                    // Preview data from search results
-                    previewTitle: albumItem.name,
-                    previewArtist: albumItem.artists.map(a => a.name).join(', '),
-                    ...(albumItem.images[0]?.url && { previewArtwork: albumItem.images[0].url }),
-                  });
+                  const handleClick = () => {
+                    // Set preview data in context for smooth navigation
+                    setPreviewData({
+                      title: albumItem.name,
+                      artist: albumItem.artists.map(a => a.name).join(', '),
+                      artwork: albumItem.images[0]?.url,
+                      spotifyUrl: albumItem.external_urls.spotify,
+                    });
+                  };
+
+                  const artistName = albumItem.artists.map(a => a.name).join(', ');
 
                   return (
                   <Link
                     key={albumItem.id}
-                    href={`/album?${params.toString()}`}
+                    href={`/album?artist=${encodeURIComponent(artistName)}&album=${encodeURIComponent(albumItem.name)}`}
                     className="group"
-                    aria-label={`View buy links for ${albumItem.name} by ${albumItem.artists.map(a => a.name).join(', ')}`}
+                    onClick={handleClick}
+                    aria-label={`View buy links for ${albumItem.name} by ${artistName}`}
                   >
                     <article className="bg-gray-800/50 rounded-lg overflow-hidden transition-all hover:scale-105 hover:bg-gray-800 border border-gray-700 hover:border-gray-600">
                       {/* Album Art */}

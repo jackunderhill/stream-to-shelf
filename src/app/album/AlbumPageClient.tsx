@@ -6,30 +6,36 @@ import Image from 'next/image';
 import { SearchResult } from '@/types';
 import PlatformIcon from '@/components/PlatformIcon';
 import { detectRegion } from '@/lib/region';
+import { useSearchPreview } from '@/contexts/SearchPreviewContext';
 
 export default function AlbumPageClient() {
   const searchParams = useSearchParams();
-  const spotifyUrl = searchParams.get('spotifyUrl') || '';
+  const artist = searchParams.get('artist') || '';
+  const album = searchParams.get('album') || '';
   const region = detectRegion();
+  const { previewData, setPreviewData } = useSearchPreview();
 
-  // Get preview data from URL params (if coming from search)
-  const previewTitle = searchParams.get('previewTitle');
-  const previewArtist = searchParams.get('previewArtist');
-  const previewArtwork = searchParams.get('previewArtwork');
+  // Check if preview data matches current album (by artist and album name)
+  const hasPreviewData = previewData &&
+    previewData.artist === artist &&
+    previewData.title === album;
 
-  // Track if we have preview data (to distinguish from real data)
-  const hasPreviewData = previewTitle && previewArtist;
+  // Get Spotify URL from preview data (used for API call)
+  const spotifyUrl = hasPreviewData ? previewData.spotifyUrl : '';
+
+  // Track if we started with preview data (this won't change when preview data is cleared)
+  const [startedWithPreview] = useState(hasPreviewData);
 
   // Initialize state with preview data if available
   const [results, setResults] = useState<SearchResult | null>(() => {
-    // If we have preview data, create a minimal SearchResult object to show immediately
+    // If we have preview data for this album, create a minimal SearchResult object to show immediately
     if (hasPreviewData) {
       return {
         links: [],
         metadata: {
-          title: previewTitle,
-          artistName: previewArtist,
-          artwork: previewArtwork || undefined,
+          title: previewData.title,
+          artistName: previewData.artist,
+          artwork: previewData.artwork,
         },
       };
     }
@@ -40,7 +46,7 @@ export default function AlbumPageClient() {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!spotifyUrl) {
+    if (!artist || !album) {
       setLoading(false);
       return;
     }
@@ -53,16 +59,50 @@ export default function AlbumPageClient() {
       setError(null);
 
       try {
-        // Use the existing search API but pass the Spotify URL directly
+        let urlToUse = spotifyUrl;
+        let spotifyImageUrl: string | undefined;
+
+        // If we don't have a Spotify URL from preview data, look it up first
+        if (!urlToUse) {
+          const searchResponse = await fetch(
+            `/api/spotify-search?artist=${encodeURIComponent(artist)}&album=${encodeURIComponent(album)}`,
+            { signal: abortController.signal }
+          );
+
+          if (!searchResponse.ok) {
+            throw new Error('Failed to find album');
+          }
+
+          const searchData = await searchResponse.json();
+
+          // Get the first result (most relevant)
+          if (searchData.results && searchData.results.length > 0) {
+            const firstResult = searchData.results[0];
+            urlToUse = firstResult.external_urls.spotify;
+            // Capture the Spotify image for fallback if songlink doesn't have artwork
+            spotifyImageUrl = firstResult.images?.[0]?.url;
+          } else {
+            throw new Error('Album not found');
+          }
+        }
+
+        // Now fetch buy links using the Spotify URL
         const response = await fetch(
-          `/api/songlink?url=${encodeURIComponent(spotifyUrl)}&region=${region}`,
+          `/api/songlink?url=${encodeURIComponent(urlToUse)}&region=${region}&artist=${encodeURIComponent(artist)}&album=${encodeURIComponent(album)}`,
           { signal: abortController.signal }
         );
+
         if (!response.ok) {
           throw new Error('Failed to fetch buy links');
         }
 
         const data = await response.json();
+
+        // If songlink didn't return artwork but we have it from Spotify, use that
+        if (data.metadata && !data.metadata.artwork && spotifyImageUrl) {
+          data.metadata.artwork = spotifyImageUrl;
+        }
+
         setResults(data);
         setHasFetchedData(true);
       } catch (err) {
@@ -84,7 +124,18 @@ export default function AlbumPageClient() {
     return () => {
       abortController.abort();
     };
-  }, [spotifyUrl, region]);
+  }, [artist, album, spotifyUrl, region]);
+
+  // Clear preview data after component mounts to avoid stale data on navigation
+  useEffect(() => {
+    if (hasPreviewData) {
+      // Clear preview data after a short delay to ensure smooth transition
+      const timer = setTimeout(() => {
+        setPreviewData(null);
+      }, 100);
+      return () => clearTimeout(timer);
+    }
+  }, [hasPreviewData, setPreviewData]);
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-gray-900 via-gray-800 to-gray-900">
@@ -123,8 +174,8 @@ export default function AlbumPageClient() {
           </div>
         )}
 
-        {/* Loading State - show spinner while fetching buy links OR when we have preview but no real data yet */}
-        {(loading || (hasPreviewData && !hasFetchedData)) && !error && (
+        {/* Loading State - show spinner while fetching buy links OR when we started with preview but no real data yet */}
+        {(loading || (startedWithPreview && !hasFetchedData)) && !error && (
           <div className="text-center py-12" role="status" aria-live="polite">
             <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500" aria-hidden="true"></div>
             <p className="mt-4 text-gray-400">Finding where to buy...</p>
