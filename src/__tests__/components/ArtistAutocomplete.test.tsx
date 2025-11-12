@@ -363,7 +363,7 @@ describe('ArtistAutocomplete', () => {
     const suggestion = screen.getByText('Radiohead');
     fireEvent.click(suggestion);
 
-    expect(mockOnSelect).toHaveBeenCalledWith('Radiohead');
+    expect(mockOnSelect).toHaveBeenCalledWith('Radiohead', '1');
   });
 
   it('highlights suggestion on mouse enter', () => {

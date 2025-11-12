@@ -7,7 +7,7 @@ import Image from 'next/image';
 interface ArtistAutocompleteProps {
   value: string;
   onChange: (value: string) => void;
-  onSelect?: (artistName: string) => void;
+  onSelect?: (artistName: string, artistId?: string) => void;
   placeholder?: string;
   required?: boolean;
   maxLength?: number;
@@ -46,11 +46,11 @@ export default function ArtistAutocomplete({
 
   const showDropdown = isFocused && (suggestions.length > 0 || isLoading);
 
-  const handleSelectSuggestion = (artistName: string) => {
+  const handleSelectSuggestion = (artistName: string, artistId: string) => {
     onChange(artistName);
     setIsFocused(false);
     if (onSelect) {
-      onSelect(artistName);
+      onSelect(artistName, artistId);
     }
   };
 
@@ -71,7 +71,7 @@ export default function ArtistAutocomplete({
       case 'Enter':
         if (selectedIndex >= 0 && selectedIndex < suggestions.length) {
           e.preventDefault();
-          handleSelectSuggestion(suggestions[selectedIndex].name);
+          handleSelectSuggestion(suggestions[selectedIndex].name, suggestions[selectedIndex].id);
         }
         break;
       case 'Escape':
@@ -121,9 +121,9 @@ export default function ArtistAutocomplete({
             <button
               key={artist.id}
               type="button"
-              onClick={() => handleSelectSuggestion(artist.name)}
+              onClick={() => handleSelectSuggestion(artist.name, artist.id)}
               onMouseEnter={() => setSelectedIndex(index)}
-              className={`w-full px-4 py-3 text-left flex items-center gap-3 transition-colors ${
+              className={`w-full px-4 py-3 text-left flex items-center gap-3 transition-colors cursor-pointer ${
                 index === selectedIndex
                   ? 'bg-blue-600 text-white'
                   : 'hover:bg-gray-700 text-gray-200'

@@ -65,10 +65,15 @@ export interface BlogPost {
 }
 
 // Spotify API types
+export interface SpotifyArtist {
+  id: string;
+  name: string;
+}
+
 export interface SpotifyAlbum {
   id: string;
   name: string;
-  artists: { name: string }[];
+  artists: SpotifyArtist[];
   images: { url: string; width: number; height: number }[];
   release_date: string;
   album_type: string; // 'album', 'single', 'compilation'

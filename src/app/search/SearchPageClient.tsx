@@ -7,12 +7,14 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { SpotifySearchResponse } from '@/types';
 import { useSearchPreview } from '@/contexts/SearchPreviewContext';
+import { getOptimalImageUrl } from '@/lib/image-proxy';
 
 export default function SearchPageClient() {
   const { setPreviewData } = useSearchPreview();
   const searchParams = useSearchParams();
   const artist = searchParams.get('artist') || '';
   const album = searchParams.get('album') || '';
+  const artistId = searchParams.get('artistId') || '';
 
   const [results, setResults] = useState<SpotifySearchResponse | null>(null);
   const [loading, setLoading] = useState(true);
@@ -35,6 +37,7 @@ export default function SearchPageClient() {
         const params = new URLSearchParams({
           artist,
           ...(album && { album }),
+          ...(artistId && { artistId }),
         });
 
         const response = await fetch(
@@ -65,7 +68,7 @@ export default function SearchPageClient() {
     return () => {
       abortController.abort();
     };
-  }, [artist, album]);
+  }, [artist, album, artistId]);
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-gray-900 via-gray-800 to-gray-900">
@@ -74,7 +77,7 @@ export default function SearchPageClient() {
         <div className="mb-8">
           <Link
             href="/"
-            className="text-blue-400 hover:text-blue-300 transition-colors inline-flex items-center gap-2"
+            className="text-blue-400 hover:text-blue-300 transition-colors inline-flex items-center gap-2 cursor-pointer"
             aria-label="Back to home page"
           >
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
@@ -152,7 +155,7 @@ export default function SearchPageClient() {
                   <Link
                     key={albumItem.id}
                     href={`/album?artist=${encodeURIComponent(artistName)}&album=${encodeURIComponent(albumItem.name)}`}
-                    className="group"
+                    className="group cursor-pointer"
                     onClick={handleClick}
                     aria-label={`View buy links for ${albumItem.name} by ${artistName}`}
                   >
@@ -160,7 +163,7 @@ export default function SearchPageClient() {
                       {/* Album Art */}
                       {albumItem.images[0] && (
                         <Image
-                          src={albumItem.images[0].url}
+                          src={getOptimalImageUrl(albumItem.images[0].url) || albumItem.images[0].url}
                           alt={`${albumItem.name} album cover`}
                           width={albumItem.images[0].width}
                           height={albumItem.images[0].height}

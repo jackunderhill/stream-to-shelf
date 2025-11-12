@@ -12,8 +12,14 @@ interface SearchBarProps {
 export default function SearchBar({ initialArtist = '', initialAlbum = '' }: SearchBarProps) {
   const [artist, setArtist] = useState(initialArtist);
   const [album, setAlbum] = useState(initialAlbum);
+  const [artistId, setArtistId] = useState<string | undefined>();
   const [isPending, startTransition] = useTransition();
   const router = useRouter();
+
+  const handleArtistSelect = (artistName: string, id?: string) => {
+    setArtist(artistName);
+    setArtistId(id);
+  };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -22,6 +28,8 @@ export default function SearchBar({ initialArtist = '', initialAlbum = '' }: Sea
     const params = new URLSearchParams();
     params.set('artist', artist.trim());
     if (album.trim()) params.set('album', album.trim());
+    // Add artistId if this was a typeahead selection
+    if (artistId) params.set('artistId', artistId);
 
     startTransition(() => {
       router.push(`/search?${params.toString()}`);
@@ -39,6 +47,7 @@ export default function SearchBar({ initialArtist = '', initialAlbum = '' }: Sea
             <ArtistAutocomplete
               value={artist}
               onChange={setArtist}
+              onSelect={handleArtistSelect}
               placeholder="Enter artist name..."
               required
               maxLength={100}

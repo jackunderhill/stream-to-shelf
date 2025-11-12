@@ -69,6 +69,7 @@ export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
   const artist = searchParams.get('artist');
   const album = searchParams.get('album');
+  const artistId = searchParams.get('artistId');
 
   // Input validation
   if (!artist || artist.trim().length === 0) {
@@ -127,8 +128,15 @@ export async function GET(request: NextRequest) {
     }
 
     // Filter to get albums from the correct artist
-    const artistLower = sanitizedArtist.toLowerCase();
     const filteredResults = data.albums.items.filter((item: SpotifyAlbum) => {
+      // If artistId is provided (from typeahead selection), use exact ID match
+      if (artistId) {
+        const itemArtistIds = item.artists?.map((a) => a.id) || [];
+        return itemArtistIds.includes(artistId);
+      }
+
+      // Otherwise use fuzzy name matching for free text search
+      const artistLower = sanitizedArtist.toLowerCase();
       const itemArtists = item.artists?.map((a) => a.name.toLowerCase()) || [];
       return itemArtists.some((a: string) =>
         a.includes(artistLower) || artistLower.includes(a)

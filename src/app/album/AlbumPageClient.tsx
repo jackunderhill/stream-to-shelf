@@ -144,7 +144,7 @@ export default function AlbumPageClient() {
         <div className="mb-8">
           <button
             onClick={() => window.history.back()}
-            className="text-blue-400 hover:text-blue-300 transition-colors inline-flex items-center gap-2"
+            className="text-blue-400 hover:text-blue-300 transition-colors inline-flex items-center gap-2 cursor-pointer"
             aria-label="Go back to search results"
           >
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
@@ -223,7 +223,7 @@ export default function AlbumPageClient() {
                             href={link.url}
                             target="_blank"
                             rel="noopener noreferrer"
-                            className="bg-blue-900/20 hover:bg-blue-900/30 rounded-lg p-6 text-center transition-all hover:scale-105 border border-blue-700 hover:border-blue-600 flex flex-col items-center"
+                            className="bg-blue-900/20 hover:bg-blue-900/30 rounded-lg p-6 text-center transition-all hover:scale-105 border border-blue-700 hover:border-blue-600 flex flex-col items-center cursor-pointer"
                             aria-label={`Buy digital download on ${link.displayName}`}
                           >
                             <PlatformIcon platform={link.platform} />
@@ -249,7 +249,7 @@ export default function AlbumPageClient() {
                             href={link.url}
                             target="_blank"
                             rel="noopener noreferrer"
-                            className="bg-green-900/20 hover:bg-green-900/30 rounded-lg p-6 text-center transition-all hover:scale-105 border border-green-700 hover:border-green-600 flex flex-col items-center"
+                            className="bg-green-900/20 hover:bg-green-900/30 rounded-lg p-6 text-center transition-all hover:scale-105 border border-green-700 hover:border-green-600 flex flex-col items-center cursor-pointer"
                             aria-label={`Buy physical media on ${link.displayName}`}
                           >
                             <PlatformIcon platform={link.platform} />
