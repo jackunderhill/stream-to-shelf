@@ -3,83 +3,105 @@ import type { NextConfig } from "next";
 const nextConfig: NextConfig = {
   images: {
     remotePatterns: [
+      // WHITELISTED MAJOR PLATFORMS
+      // These are optimized for speed as they're the most common sources
+
+      // Spotify - Primary music source
       {
         protocol: 'https',
-        hostname: 'i.scdn.co', // Spotify CDN
+        hostname: 'i.scdn.co',
         port: '',
         pathname: '/image/**',
       },
       {
         protocol: 'https',
-        hostname: 'mosaic.scdn.co', // Spotify mosaic images
+        hostname: 'mosaic.scdn.co',
         port: '',
         pathname: '/**',
       },
       {
         protocol: 'https',
-        hostname: 'image-cdn-ak.spotifycdn.com', // Spotify alternative CDN
+        hostname: 'image-cdn-ak.spotifycdn.com',
         port: '',
         pathname: '/**',
       },
       {
         protocol: 'https',
-        hostname: 'image-cdn-fa.spotifycdn.com', // Spotify alternative CDN
+        hostname: 'image-cdn-fa.spotifycdn.com',
         port: '',
         pathname: '/**',
       },
+
+      // Apple Music
       {
         protocol: 'https',
-        hostname: 'm.media-amazon.com', // Amazon images (from Songlink)
-        port: '',
-        pathname: '/images/**',
-      },
-      {
-        protocol: 'https',
-        hostname: 'is1-ssl.mzstatic.com', // Apple Music artwork
+        hostname: 'is1-ssl.mzstatic.com',
         port: '',
         pathname: '/image/**',
       },
       {
         protocol: 'https',
-        hostname: 'a1.mzstatic.com', // Apple Music alternative CDN
+        hostname: 'a1.mzstatic.com',
         port: '',
         pathname: '/**',
       },
       {
         protocol: 'https',
-        hostname: 'img.discogs.com', // Discogs artwork
+        hostname: 'is2-ssl.mzstatic.com',
         port: '',
         pathname: '/**',
       },
       {
         protocol: 'https',
-        hostname: 'i.discogs.com', // Discogs CDN artwork
+        hostname: 'is3-ssl.mzstatic.com',
         port: '',
         pathname: '/**',
       },
       {
         protocol: 'https',
-        hostname: 'st.discogs.com', // Discogs static assets
+        hostname: 'is4-ssl.mzstatic.com',
         port: '',
         pathname: '/**',
       },
       {
         protocol: 'https',
-        hostname: 'f4.bcbits.com', // Bandcamp artwork
+        hostname: 'is5-ssl.mzstatic.com',
         port: '',
-        pathname: '/img/**',
+        pathname: '/**',
       },
+
+      // Discogs
       {
-        protocol: 'http',
-        hostname: 'cdn-images.dzcdn.net', // Deezer artwork
+        protocol: 'https',
+        hostname: 'img.discogs.com',
         port: '',
-        pathname: '/images/**',
+        pathname: '/**',
       },
       {
         protocol: 'https',
-        hostname: 'cdn-images.dzcdn.net', // Deezer artwork (HTTPS)
+        hostname: 'i.discogs.com',
         port: '',
-        pathname: '/images/**',
+        pathname: '/**',
+      },
+      {
+        protocol: 'https',
+        hostname: 'a.discogs.com',
+        port: '',
+        pathname: '/**',
+      },
+      {
+        protocol: 'https',
+        hostname: 'st.discogs.com',
+        port: '',
+        pathname: '/**',
+      },
+
+      // Image Proxy - Handles all other platforms automatically
+      {
+        protocol: 'https',
+        hostname: process.env.VERCEL_URL || 'localhost',
+        port: '',
+        pathname: '/api/image-proxy',
       },
     ],
   },

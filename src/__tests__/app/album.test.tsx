@@ -353,10 +353,13 @@ describe('AlbumPageClient', () => {
       // Preview data should be visible immediately, even while loading
       expect(screen.getByText('Preview Album')).toBeInTheDocument();
       expect(screen.getByText('Preview Artist')).toBeInTheDocument();
-      expect(screen.getByAltText('Preview Album album cover')).toHaveAttribute(
-        'src',
-        'https://example.com/preview.jpg'
-      );
+
+      // Image URL should either be direct (if whitelisted) or proxied (if not)
+      const imageElement = screen.getByAltText('Preview Album album cover');
+      const src = imageElement.getAttribute('src');
+      const isProxied = src?.startsWith('/api/image-proxy');
+      const isDirect = src === 'https://example.com/preview.jpg';
+      expect(isProxied || isDirect).toBe(true);
     });
 
     it('shows loading spinner when preview data is shown but not yet fetched', () => {

@@ -7,6 +7,7 @@ import { SearchResult } from '@/types';
 import PlatformIcon from '@/components/PlatformIcon';
 import { detectRegion } from '@/lib/region';
 import { useSearchPreview } from '@/contexts/SearchPreviewContext';
+import { getOptimalImageUrl } from '@/lib/image-proxy';
 
 export default function AlbumPageClient() {
   const searchParams = useSearchParams();
@@ -159,7 +160,7 @@ export default function AlbumPageClient() {
           <div className="bg-gray-800/50 rounded-lg p-8 mb-8 flex flex-col items-center text-center">
             {results.metadata.artwork && (
               <Image
-                src={results.metadata.artwork}
+                src={getOptimalImageUrl(results.metadata.artwork) || results.metadata.artwork}
                 alt={`${results.metadata.title} album cover`}
                 width={256}
                 height={256}

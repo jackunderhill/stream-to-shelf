@@ -9,29 +9,48 @@ type Props = {
 
 async function fetchAlbumArtwork(artist: string, album: string): Promise<string | null> {
   try {
-    const baseUrl = process.env.NODE_ENV === 'development'
-      ? 'http://localhost:3000'
-      : (process.env.NEXT_PUBLIC_SITE_URL || 'https://stream-to-shelf.vercel.app');
+    // Only try to fetch artwork if we have a working base URL
+    // During build time, we skip this as there's no server running
+    const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://stream-to-shelf.vercel.app';
 
-    const response = await fetch(
-      `${baseUrl}/api/spotify-search?artist=${encodeURIComponent(artist)}&album=${encodeURIComponent(album)}`,
-      {
-        next: { revalidate: 3600 },
-        cache: 'force-cache',
-      }
-    );
-
-    if (!response.ok) {
+    // Don't attempt internal fetches during build time
+    // The API will only be available at runtime
+    if (process.env.NODE_ENV === 'production' && !process.env.VERCEL_URL) {
       return null;
     }
 
-    const data = await response.json();
-    if (data.results && data.results.length > 0) {
-      return data.results[0].images?.[0]?.url || null;
+    // Set a reasonable timeout for the fetch (5 seconds)
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 5000);
+
+    try {
+      const response = await fetch(
+        `${baseUrl}/api/spotify-search?artist=${encodeURIComponent(artist)}&album=${encodeURIComponent(album)}`,
+        {
+          signal: controller.signal,
+          next: { revalidate: 3600 },
+        }
+      );
+
+      clearTimeout(timeout);
+
+      if (!response.ok) {
+        return null;
+      }
+
+      const data = await response.json();
+      if (data.results && data.results.length > 0) {
+        return data.results[0].images?.[0]?.url || null;
+      }
+      return null;
+    } catch {
+      clearTimeout(timeout);
+      // Silently return null on timeout or other errors
+      // The OG image endpoint will be used as fallback
+      return null;
     }
-    return null;
-  } catch (error) {
-    console.error('Error fetching album artwork for metadata:', error);
+  } catch {
+    // Outer catch shouldn't normally trigger, but just in case
     return null;
   }
 }
@@ -59,11 +78,12 @@ export async function generateMetadata({ searchParams }: Props): Promise<Metadat
   }
 
   // Try to fetch actual album artwork from Spotify
+  // If this fails or times out, we fall back to the generated OG image
   let albumArtworkUrl: string | null = null;
   try {
     albumArtworkUrl = await fetchAlbumArtwork(artist, album);
-  } catch (error) {
-    console.error('Failed to fetch album artwork:', error);
+  } catch {
+    // Silently fail - fallback to generated image is used
   }
 
   // Use actual album artwork if available, otherwise fall back to generated image

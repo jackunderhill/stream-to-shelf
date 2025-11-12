@@ -64,7 +64,7 @@ export default function Home() {
           <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6 max-w-4xl mx-auto">
             <Link
               href="/blog/how-to-buy-vinyl-online"
-              className="group block p-6 glass-effect rounded-lg transition-all duration-300 hover:scale-105 hover:-translate-y-1 relative overflow-hidden"
+              className="group block p-6 glass-effect rounded-lg transition-all duration-300 hover:scale-105 hover:-translate-y-1 relative overflow-hidden cursor-pointer"
             >
               <div className="absolute inset-0 shimmer opacity-0 group-hover:opacity-100"></div>
               <h3 className="text-lg font-semibold mb-2 group-hover:text-blue-400 transition-colors relative z-10">How to Buy Vinyl Online</h3>
@@ -75,7 +75,7 @@ export default function Home() {
 
             <Link
               href="/blog/legal-music-downloads-2025"
-              className="group block p-6 glass-effect rounded-lg transition-all duration-300 hover:scale-105 hover:-translate-y-1 relative overflow-hidden"
+              className="group block p-6 glass-effect rounded-lg transition-all duration-300 hover:scale-105 hover:-translate-y-1 relative overflow-hidden cursor-pointer"
             >
               <div className="absolute inset-0 shimmer opacity-0 group-hover:opacity-100"></div>
               <h3 className="text-lg font-semibold mb-2 group-hover:text-purple-400 transition-colors relative z-10">Legal Music Downloads 2025</h3>
@@ -86,7 +86,7 @@ export default function Home() {
 
             <Link
               href="/blog/streaming-vs-owning-why-it-matters"
-              className="group block p-6 glass-effect rounded-lg transition-all duration-300 hover:scale-105 hover:-translate-y-1 relative overflow-hidden"
+              className="group block p-6 glass-effect rounded-lg transition-all duration-300 hover:scale-105 hover:-translate-y-1 relative overflow-hidden cursor-pointer"
             >
               <div className="absolute inset-0 shimmer opacity-0 group-hover:opacity-100"></div>
               <h3 className="text-lg font-semibold mb-2 group-hover:text-pink-400 transition-colors relative z-10">Streaming vs Owning</h3>
