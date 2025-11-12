@@ -1,8 +1,10 @@
 import SearchBar from '@/components/SearchBar';
 import Link from 'next/link';
 import { ShieldCheckIcon, MusicalNoteIcon, HeartIcon } from '@heroicons/react/24/solid';
+import { getAllBlogPosts } from '@/lib/blog';
 
 export default function Home() {
+  const blogPosts = getAllBlogPosts().slice(0, 3);
   return (
     <div className="min-h-screen bg-gradient-to-b from-gray-900 via-gray-800 to-gray-900">
       <div className="container mx-auto px-4 py-16">
@@ -61,40 +63,29 @@ export default function Home() {
         {/* Blog Preview Section */}
         <div className="text-center">
           <h2 className="text-3xl font-bold mb-8">Learn More About Music Buying</h2>
-          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6 max-w-4xl mx-auto">
-            <Link
-              href="/blog/how-to-buy-vinyl-online"
-              className="group block p-6 glass-effect rounded-lg transition-all duration-300 hover:scale-105 hover:-translate-y-1 relative overflow-hidden cursor-pointer"
-            >
-              <div className="absolute inset-0 shimmer opacity-0 group-hover:opacity-100"></div>
-              <h3 className="text-lg font-semibold mb-2 group-hover:text-blue-400 transition-colors relative z-10">How to Buy Vinyl Online</h3>
-              <p className="text-gray-400 text-sm group-hover:text-gray-300 transition-colors relative z-10">
-                Complete guide to finding and purchasing vinyl records safely.
-              </p>
-            </Link>
-
-            <Link
-              href="/blog/legal-music-downloads-2025"
-              className="group block p-6 glass-effect rounded-lg transition-all duration-300 hover:scale-105 hover:-translate-y-1 relative overflow-hidden cursor-pointer"
-            >
-              <div className="absolute inset-0 shimmer opacity-0 group-hover:opacity-100"></div>
-              <h3 className="text-lg font-semibold mb-2 group-hover:text-purple-400 transition-colors relative z-10">Legal Music Downloads 2025</h3>
-              <p className="text-gray-400 text-sm group-hover:text-gray-300 transition-colors relative z-10">
-                Best platforms for high-quality legal music downloads.
-              </p>
-            </Link>
-
-            <Link
-              href="/blog/streaming-vs-owning-why-it-matters"
-              className="group block p-6 glass-effect rounded-lg transition-all duration-300 hover:scale-105 hover:-translate-y-1 relative overflow-hidden cursor-pointer"
-            >
-              <div className="absolute inset-0 shimmer opacity-0 group-hover:opacity-100"></div>
-              <h3 className="text-lg font-semibold mb-2 group-hover:text-pink-400 transition-colors relative z-10">Streaming vs Owning</h3>
-              <p className="text-gray-400 text-sm group-hover:text-gray-300 transition-colors relative z-10">
-                Why purchasing music still matters for artists and fans.
-              </p>
-            </Link>
+          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6 max-w-4xl mx-auto mb-8">
+            {blogPosts.map((post) => (
+              <Link
+                key={post.slug}
+                href={`/blog/${post.slug}`}
+                className="group block p-6 glass-effect rounded-lg transition-all duration-300 hover:scale-105 hover:-translate-y-1 relative overflow-hidden cursor-pointer"
+              >
+                <div className="absolute inset-0 shimmer opacity-0 group-hover:opacity-100"></div>
+                <h3 className="text-lg font-semibold mb-2 group-hover:text-blue-400 transition-colors relative z-10">
+                  {post.title}
+                </h3>
+                <p className="text-gray-400 text-sm group-hover:text-gray-300 transition-colors relative z-10">
+                  {post.description}
+                </p>
+              </Link>
+            ))}
           </div>
+          <Link
+            href="/blog"
+            className="inline-block text-blue-400 hover:text-blue-300 transition-colors cursor-pointer font-semibold"
+          >
+            View all articles →
+          </Link>
         </div>
       </div>
     </div>
