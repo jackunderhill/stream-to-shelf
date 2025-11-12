@@ -1,5 +1,5 @@
 ---
-title: "When Streaming Goes Down: Why You Need a Music Collection"
+title: "When Streaming Goes Down..."
 description: "Major outages at Cloudflare and AWS remind us why owning physical and digital copies of your music matters."
 date: "2025-11-12"
 tags: ["music ownership", "streaming outages", "digital preservation"]

@@ -68,13 +68,13 @@ export default function Home() {
               <Link
                 key={post.slug}
                 href={`/blog/${post.slug}`}
-                className="group block p-6 glass-effect rounded-lg transition-all duration-300 hover:scale-105 hover:-translate-y-1 relative overflow-hidden cursor-pointer"
+                className="group flex flex-col items-center justify-center p-6 glass-effect rounded-lg transition-all duration-300 hover:scale-105 hover:-translate-y-1 relative overflow-hidden cursor-pointer min-h-48"
               >
                 <div className="absolute inset-0 shimmer opacity-0 group-hover:opacity-100"></div>
-                <h3 className="text-lg font-semibold mb-2 group-hover:text-blue-400 transition-colors relative z-10">
+                <h3 className="text-lg font-semibold mb-2 group-hover:text-blue-400 transition-colors relative z-10 text-center">
                   {post.title}
                 </h3>
-                <p className="text-gray-400 text-sm group-hover:text-gray-300 transition-colors relative z-10">
+                <p className="text-gray-400 text-sm group-hover:text-gray-300 transition-colors relative z-10 text-center">
                   {post.description}
                 </p>
               </Link>
