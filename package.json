@@ -21,7 +21,7 @@
     "@vercel/og": "^0.8.5",
     "gray-matter": "^4.0.3",
     "next": "^16.1.0",
-    "next-mdx-remote": "^5.0.0",
+    "next-mdx-remote": "^6.0.0",
     "react": "^19.2.3",
     "react-dom": "^19.2.3",
     "react-kofi-overlay": "^1.0.2",
