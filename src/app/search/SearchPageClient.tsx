@@ -5,7 +5,7 @@ import { useEffect, useState } from 'react';
 import SearchBar from '@/components/SearchBar';
 import Link from 'next/link';
 import Image from 'next/image';
-import { SpotifySearchResponse } from '@/types';
+import { AlbumSearchResponse } from '@/types';
 import { useSearchPreview } from '@/contexts/SearchPreviewContext';
 import { getOptimalImageUrl } from '@/lib/image-proxy';
 
@@ -16,7 +16,7 @@ export default function SearchPageClient() {
   const album = searchParams.get('album') || '';
   const artistId = searchParams.get('artistId') || '';
 
-  const [results, setResults] = useState<SpotifySearchResponse | null>(null);
+  const [results, setResults] = useState<AlbumSearchResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -41,7 +41,7 @@ export default function SearchPageClient() {
         });
 
         const response = await fetch(
-          `/api/spotify-search?${params}`,
+          `/api/deezer-search?${params}`,
           { signal: abortController.signal }
         );
         if (!response.ok) {
@@ -145,7 +145,7 @@ export default function SearchPageClient() {
                       title: albumItem.name,
                       artist: albumItem.artists.map(a => a.name).join(', '),
                       artwork: albumItem.images[0]?.url,
-                      spotifyUrl: albumItem.external_urls.spotify,
+                      albumUrl: albumItem.url,
                     });
                   };
 
@@ -181,8 +181,8 @@ export default function SearchPageClient() {
                           {albumItem.artists.map(a => a.name).join(', ')}
                         </p>
                         <div className="flex items-center justify-between text-xs text-gray-500">
-                          <span className="capitalize">{albumItem.album_type}</span>
-                          <span>{new Date(albumItem.release_date).getFullYear()}</span>
+                          <span className="capitalize">{albumItem.album_type === 'ep' ? 'EP' : albumItem.album_type}</span>
+                          {albumItem.release_date && <span>{new Date(albumItem.release_date).getFullYear()}</span>}
                         </div>
                       </div>
                     </article>

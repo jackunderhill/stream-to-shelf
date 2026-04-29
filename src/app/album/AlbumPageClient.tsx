@@ -21,8 +21,8 @@ export default function AlbumPageClient() {
     previewData.artist === artist &&
     previewData.title === album;
 
-  // Get Spotify URL from preview data (used for API call)
-  const spotifyUrl = hasPreviewData ? previewData.spotifyUrl : '';
+  // Get album URL from preview data (used for API call)
+  const albumUrl = hasPreviewData ? previewData.albumUrl : '';
 
   // Track if we started with preview data (this won't change when preview data is cleared)
   const [startedWithPreview] = useState(hasPreviewData);
@@ -60,13 +60,13 @@ export default function AlbumPageClient() {
       setError(null);
 
       try {
-        let urlToUse = spotifyUrl;
-        let spotifyImageUrl: string | undefined;
+        let urlToUse = albumUrl;
+        let fallbackImageUrl: string | undefined;
 
-        // If we don't have a Spotify URL from preview data, look it up first
+        // If we don't have an album URL from preview data, look it up first
         if (!urlToUse) {
           const searchResponse = await fetch(
-            `/api/spotify-search?artist=${encodeURIComponent(artist)}&album=${encodeURIComponent(album)}`,
+            `/api/deezer-search?artist=${encodeURIComponent(artist)}&album=${encodeURIComponent(album)}`,
             { signal: abortController.signal }
           );
 
@@ -76,18 +76,15 @@ export default function AlbumPageClient() {
 
           const searchData = await searchResponse.json();
 
-          // Get the first result (most relevant)
           if (searchData.results && searchData.results.length > 0) {
             const firstResult = searchData.results[0];
-            urlToUse = firstResult.external_urls.spotify;
-            // Capture the Spotify image for fallback if songlink doesn't have artwork
-            spotifyImageUrl = firstResult.images?.[0]?.url;
+            urlToUse = firstResult.url;
+            fallbackImageUrl = firstResult.images?.[0]?.url;
           } else {
             throw new Error('Album not found');
           }
         }
 
-        // Now fetch buy links using the Spotify URL
         const response = await fetch(
           `/api/songlink?url=${encodeURIComponent(urlToUse)}&region=${region}&artist=${encodeURIComponent(artist)}&album=${encodeURIComponent(album)}`,
           { signal: abortController.signal }
@@ -99,9 +96,8 @@ export default function AlbumPageClient() {
 
         const data = await response.json();
 
-        // If songlink didn't return artwork but we have it from Spotify, use that
-        if (data.metadata && !data.metadata.artwork && spotifyImageUrl) {
-          data.metadata.artwork = spotifyImageUrl;
+        if (data.metadata && !data.metadata.artwork && fallbackImageUrl) {
+          data.metadata.artwork = fallbackImageUrl;
         }
 
         setResults(data);
@@ -125,7 +121,7 @@ export default function AlbumPageClient() {
     return () => {
       abortController.abort();
     };
-  }, [artist, album, spotifyUrl, region]);
+  }, [artist, album, albumUrl, region]);
 
   // Clear preview data after component mounts to avoid stale data on navigation
   useEffect(() => {

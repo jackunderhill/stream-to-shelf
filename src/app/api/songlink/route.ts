@@ -110,6 +110,58 @@ const AMAZON_DOMAINS: Record<Region, string> = {
   'JP': 'amazon.co.jp',
 };
 
+// Map regions to 7digital domains
+const SEVENDIGITAL_DOMAINS: Record<Region, string> = {
+  'US': 'us.7digital.com',
+  'GB': 'uk.7digital.com',
+  'CA': 'ca.7digital.com',
+  'AU': 'au.7digital.com',
+  'DE': 'de.7digital.com',
+  'FR': 'fr.7digital.com',
+  'JP': 'us.7digital.com', // Japan uses US store
+};
+
+// Map regions to Qobuz locale codes
+const QOBUZ_LOCALES: Record<Region, string> = {
+  'US': 'us-en',
+  'GB': 'gb-en',
+  'CA': 'ca-en',
+  'AU': 'au-en',
+  'DE': 'de-de',
+  'FR': 'fr-fr',
+  'JP': 'us-en', // Japan uses US store
+};
+
+// Map regions to World of Books locale codes
+const WORLDOFBOOKS_LOCALES: Record<Region, string> = {
+  'US': 'en-us',
+  'GB': 'en-gb',
+  'CA': 'en-us',
+  'AU': 'en-au',
+  'DE': 'de-de',
+  'FR': 'fr-fr',
+  'JP': 'en-us',
+};
+
+/**
+ * Extract the first artist from a string that may contain multiple artists
+ * e.g. "Artist1, Artist2" -> "Artist1"
+ */
+function getFirstArtist(artistName: string): string {
+  // Common separators for multiple artists
+  const separators = [', ', ' & ', ' and ', ' feat. ', ' ft. ', ' featuring ', ' with '];
+
+  let firstArtist = artistName;
+  for (const separator of separators) {
+    const parts = firstArtist.split(separator);
+    if (parts.length > 1) {
+      firstArtist = parts[0];
+    }
+  }
+
+  return firstArtist.trim();
+}
+
 /**
  * Convert Songlink response to our PlatformLink format
  * Only returns purchase/buy links, filtering out streaming services
@@ -142,8 +194,10 @@ async function convertToPlatformLinks(songlink: SonglinkResponse, region: Region
 
   // Add Amazon Music search link (digital downloads - more reliable than affiliate links)
   // Use region-specific Amazon domain
+  // Use first artist only for search queries (multiple artists often return no results)
   if (artistName && albumName) {
-    const amazonQuery = `${artistName} ${albumName}`;
+    const searchArtist = getFirstArtist(artistName);
+    const amazonQuery = `${searchArtist} ${albumName}`;
     const amazonDomain = AMAZON_DOMAINS[region] || 'amazon.com';
     links.push({
       platform: 'amazonDigital',
@@ -155,8 +209,11 @@ async function convertToPlatformLinks(songlink: SonglinkResponse, region: Region
 
   // Add physical media stores - always add these if we have artist/album info
   if (artistName && albumName) {
+    // Use first artist only for search queries (multiple artists often return no results)
+    const searchArtist = getFirstArtist(artistName);
+
     // Amazon physical media (CDs, vinyl, cassettes)
-    const amazonQuery = `${artistName} ${albumName}`;
+    const amazonQuery = `${searchArtist} ${albumName}`;
     const amazonDomain = AMAZON_DOMAINS[region] || 'amazon.com';
     links.push({
       platform: 'amazonPhysical',
@@ -166,7 +223,7 @@ async function convertToPlatformLinks(songlink: SonglinkResponse, region: Region
     });
 
     // Use Discogs API to get the best matching release
-    const discogsUrl = await getDiscogsRelease(artistName, albumName);
+    const discogsUrl = await getDiscogsRelease(searchArtist, albumName);
     if (discogsUrl) {
       links.push({
         platform: 'discogs',
@@ -176,12 +233,46 @@ async function convertToPlatformLinks(songlink: SonglinkResponse, region: Region
       });
     }
 
+    // World of Books (second-hand CDs)
+    const wobLocale = WORLDOFBOOKS_LOCALES[region] || 'en-gb';
+    links.push({
+      platform: 'worldofbooks',
+      displayName: 'World of Books',
+      url: `https://www.worldofbooks.com/${wobLocale}/search?keyword=${encodeURIComponent(amazonQuery)}`,
+      category: 'physical',
+    });
+
+    // Banquet Records (UK-based record store)
+    links.push({
+      platform: 'banquet',
+      displayName: 'Banquet Records',
+      url: `https://www.banquetrecords.com/search?q=${encodeURIComponent(amazonQuery)}`,
+      category: 'physical',
+    });
+
     // Add HDtracks search link (hi-res digital downloads)
-    const searchQuery = `${artistName} ${albumName}`;
     links.push({
       platform: 'hdtracks',
       displayName: 'HDtracks',
-      url: `https://www.hdtracks.com/#/search?q=${encodeURIComponent(searchQuery)}`,
+      url: `https://www.hdtracks.com/#/search?q=${encodeURIComponent(amazonQuery)}`,
+      category: 'download',
+    });
+
+    // Add 7digital search link (hi-res digital downloads)
+    const sevenDigitalDomain = SEVENDIGITAL_DOMAINS[region] || 'us.7digital.com';
+    links.push({
+      platform: 'sevendigital',
+      displayName: '7digital',
+      url: `https://${sevenDigitalDomain}/search?q=${encodeURIComponent(amazonQuery)}`,
+      category: 'download',
+    });
+
+    // Add Qobuz search link (hi-res streaming/downloads)
+    const qobuzLocale = QOBUZ_LOCALES[region] || 'us-en';
+    links.push({
+      platform: 'qobuz',
+      displayName: 'Qobuz',
+      url: `https://www.qobuz.com/${qobuzLocale}/search/albums/${encodeURIComponent(amazonQuery)}`,
       category: 'download',
     });
   }

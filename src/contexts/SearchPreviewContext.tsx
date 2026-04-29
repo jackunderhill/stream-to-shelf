@@ -6,7 +6,7 @@ interface AlbumPreview {
   title: string;
   artist: string;
   artwork?: string;
-  spotifyUrl: string;
+  albumUrl: string;
 }
 
 interface SearchPreviewContextType {

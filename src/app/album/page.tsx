@@ -25,7 +25,7 @@ async function fetchAlbumArtwork(artist: string, album: string): Promise<string 
 
     try {
       const response = await fetch(
-        `${baseUrl}/api/spotify-search?artist=${encodeURIComponent(artist)}&album=${encodeURIComponent(album)}`,
+        `${baseUrl}/api/deezer-search?artist=${encodeURIComponent(artist)}&album=${encodeURIComponent(album)}`,
         {
           signal: controller.signal,
           next: { revalidate: 3600 },
@@ -77,7 +77,7 @@ export async function generateMetadata({ searchParams }: Props): Promise<Metadat
     };
   }
 
-  // Try to fetch actual album artwork from Spotify
+  // Try to fetch actual album artwork from Deezer
   // If this fails or times out, we fall back to the generated OG image
   let albumArtworkUrl: string | null = null;
   try {
@@ -91,8 +91,8 @@ export async function generateMetadata({ searchParams }: Props): Promise<Metadat
   if (albumArtworkUrl) {
     ogImages.push({
       url: albumArtworkUrl,
-      width: 640,
-      height: 640,
+      width: 500,
+      height: 500,
       alt: `${album} by ${artist}`,
     });
   }

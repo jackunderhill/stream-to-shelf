@@ -9,7 +9,7 @@ interface AlbumPreview {
   title: string;
   artist: string;
   artwork?: string;
-  spotifyUrl: string;
+  albumUrl: string;
 }
 
 // Mock next/navigation
@@ -89,14 +89,14 @@ describe('AlbumPageClient', () => {
       return null;
     });
 
-    // Mock the Spotify search API response (to get the Spotify URL)
+    // Mock the Deezer search API response (to get the album URL)
     const mockSearchResponse = {
       artist: 'Radiohead',
       results: [
         {
           id: '1',
           name: 'OK Computer',
-          external_urls: { spotify: 'https://open.spotify.com/album/123' },
+          url: 'https://www.deezer.com/album/123',
           images: [{ url: 'https://example.com/ok.jpg' }],
           artists: [{ name: 'Radiohead' }],
         },
@@ -189,9 +189,9 @@ describe('AlbumPageClient', () => {
 
     const { unmount } = render(<AlbumPageClient />, { wrapper: TestWrapper });
 
-    // Verify fetch was called with abort signal (for spotify-search)
+    // Verify fetch was called with abort signal (for deezer-search)
     expect(global.fetch).toHaveBeenCalledWith(
-      expect.stringContaining('/api/spotify-search'),
+      expect.stringContaining('/api/deezer-search'),
       expect.objectContaining({
         signal: mockAbortController.signal,
       })
@@ -276,14 +276,14 @@ describe('AlbumPageClient', () => {
       return null;
     });
 
-    // Mock the Spotify search API response
+    // Mock the Deezer search API response
     const mockSearchResponse = {
       artist: 'Radiohead',
       results: [
         {
           id: '1',
           name: 'OK Computer',
-          external_urls: { spotify: 'https://open.spotify.com/album/123' },
+          url: 'https://www.deezer.com/album/123',
           images: [{ url: 'https://example.com/ok.jpg' }],
           artists: [{ name: 'Radiohead' }],
         },
@@ -345,7 +345,7 @@ describe('AlbumPageClient', () => {
         title: 'Preview Album',
         artist: 'Preview Artist',
         artwork: 'https://example.com/preview.jpg',
-        spotifyUrl: 'https://open.spotify.com/album/123',
+        albumUrl: 'https://www.deezer.com/album/123',
       });
 
       render(<AlbumPageClient />, { wrapper: PreviewWrapper });
@@ -376,7 +376,7 @@ describe('AlbumPageClient', () => {
       const PreviewWrapper = createWrapperWithPreview({
         title: 'Preview Album',
         artist: 'Preview Artist',
-        spotifyUrl: 'https://open.spotify.com/album/123',
+        albumUrl: 'https://www.deezer.com/album/123',
       });
 
       render(<AlbumPageClient />, { wrapper: PreviewWrapper });
@@ -401,7 +401,7 @@ describe('AlbumPageClient', () => {
       const PreviewWrapper = createWrapperWithPreview({
         title: 'Preview Album',
         artist: 'Preview Artist',
-        spotifyUrl: 'https://open.spotify.com/album/123',
+        albumUrl: 'https://www.deezer.com/album/123',
       });
 
       render(<AlbumPageClient />, { wrapper: PreviewWrapper });
@@ -445,7 +445,7 @@ describe('AlbumPageClient', () => {
         title: 'Preview Album',
         artist: 'Preview Artist',
         artwork: 'https://example.com/preview.jpg',
-        spotifyUrl: 'https://open.spotify.com/album/123',
+        albumUrl: 'https://www.deezer.com/album/123',
       });
 
       render(<AlbumPageClient />, { wrapper: PreviewWrapper });
@@ -490,7 +490,7 @@ describe('AlbumPageClient', () => {
       const PreviewWrapper = createWrapperWithPreview({
         title: 'Preview Album',
         artist: 'Preview Artist',
-        spotifyUrl: 'https://open.spotify.com/album/123',
+        albumUrl: 'https://www.deezer.com/album/123',
       });
 
       render(<AlbumPageClient />, { wrapper: PreviewWrapper });
@@ -515,14 +515,14 @@ describe('AlbumPageClient', () => {
         return null;
       });
 
-      // Mock the Spotify search API response
+      // Mock the Deezer search API response
       const mockSearchResponse = {
         artist: 'Radiohead',
         results: [
           {
             id: '1',
             name: 'OK Computer',
-            external_urls: { spotify: 'https://open.spotify.com/album/123' },
+            url: 'https://www.deezer.com/album/123',
             images: [{ url: 'https://example.com/ok.jpg' }],
             artists: [{ name: 'Radiohead' }],
           },
@@ -584,7 +584,7 @@ describe('AlbumPageClient', () => {
       const PreviewWrapper = createWrapperWithPreview({
         title: 'Preview Album',
         artist: 'Preview Artist',
-        spotifyUrl: 'https://open.spotify.com/album/123',
+        albumUrl: 'https://www.deezer.com/album/123',
         // No artwork
       });
 

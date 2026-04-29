@@ -2,32 +2,31 @@ import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
   images: {
+    localPatterns: [
+      {
+        pathname: '/api/image-proxy**',
+      },
+    ],
     remotePatterns: [
       // WHITELISTED MAJOR PLATFORMS
       // These are optimized for speed as they're the most common sources
 
-      // Spotify - Primary music source
+      // Deezer - Primary music source
       {
         protocol: 'https',
-        hostname: 'i.scdn.co',
-        port: '',
-        pathname: '/image/**',
-      },
-      {
-        protocol: 'https',
-        hostname: 'mosaic.scdn.co',
+        hostname: 'e-cdns-images.dzcdn.net',
         port: '',
         pathname: '/**',
       },
       {
         protocol: 'https',
-        hostname: 'image-cdn-ak.spotifycdn.com',
+        hostname: 'cdns-images.dzcdn.net',
         port: '',
         pathname: '/**',
       },
       {
         protocol: 'https',
-        hostname: 'image-cdn-fa.spotifycdn.com',
+        hostname: 'cdn-images.dzcdn.net',
         port: '',
         pathname: '/**',
       },
@@ -99,7 +98,7 @@ const nextConfig: NextConfig = {
       // Image Proxy - Handles all other platforms automatically
       {
         protocol: 'https',
-        hostname: process.env.VERCEL_URL || 'localhost',
+        hostname: process.env.VERCEL_URL || process.env.NEXT_PUBLIC_BASE_URL?.replace(/^https?:\/\//, '') || 'localhost',
         port: '',
         pathname: '/api/image-proxy',
       },

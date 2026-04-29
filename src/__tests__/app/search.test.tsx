@@ -93,7 +93,7 @@ describe('SearchPage', () => {
           name: 'OK Computer',
           album_type: 'album',
           release_date: '1997-05-21',
-          external_urls: { spotify: 'https://open.spotify.com/album/123' },
+          url: 'https://www.deezer.com/album/123',
           images: [{ url: 'https://example.com/ok.jpg', width: 640, height: 640 }],
           artists: [{ name: 'Radiohead' }],
         },
@@ -102,7 +102,7 @@ describe('SearchPage', () => {
           name: 'Kid A',
           album_type: 'album',
           release_date: '2000-10-02',
-          external_urls: { spotify: 'https://open.spotify.com/album/456' },
+          url: 'https://www.deezer.com/album/456',
           images: [{ url: 'https://example.com/kida.jpg', width: 640, height: 640 }],
           artists: [{ name: 'Radiohead' }],
         },
@@ -168,7 +168,7 @@ describe('SearchPage', () => {
 
     // Verify fetch was called with abort signal
     expect(global.fetch).toHaveBeenCalledWith(
-      expect.stringContaining('/api/spotify-search'),
+      expect.stringContaining('/api/deezer-search'),
       expect.objectContaining({
         signal: mockAbortController.signal,
       })
@@ -286,7 +286,7 @@ describe('SearchPage', () => {
           name: 'OK Computer',
           album_type: 'album',
           release_date: '1997-05-21',
-          external_urls: { spotify: 'https://open.spotify.com/album/123' },
+          url: 'https://www.deezer.com/album/123',
           images: [{ url: 'https://example.com/ok.jpg', width: 640, height: 640 }],
           artists: [{ name: 'Radiohead' }],
         },

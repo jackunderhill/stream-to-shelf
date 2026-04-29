@@ -2,7 +2,7 @@
  * Image Proxy Utilities - Hybrid Approach
  *
  * This implements a hybrid strategy:
- * - Fast platforms (Spotify, Apple Music, Discogs) use direct CDN access
+ * - Fast platforms (Deezer, Apple Music, Discogs) use direct CDN access
  * - All other platforms automatically proxy through /api/image-proxy
  *
  * Benefits:
@@ -13,11 +13,10 @@
 
 /** Domains that are whitelisted for direct CDN access (fastest) */
 const WHITELISTED_DOMAINS = new Set([
-  // Spotify
-  'i.scdn.co',
-  'mosaic.scdn.co',
-  'image-cdn-ak.spotifycdn.com',
-  'image-cdn-fa.spotifycdn.com',
+  // Deezer
+  'e-cdns-images.dzcdn.net',
+  'cdns-images.dzcdn.net',
+  'cdn-images.dzcdn.net',
 
   // Apple Music
   'is1-ssl.mzstatic.com',
@@ -40,15 +39,6 @@ const WHITELISTED_DOMAINS = new Set([
  * @param externalUrl - The original image URL from an external service
  * @returns The URL to use (either original for whitelisted, or proxied for others)
  *
- * @example
- * // Spotify image - uses direct CDN (fast)
- * getOptimalImageUrl('https://i.scdn.co/image/abc123.jpg')
- * // Returns: 'https://i.scdn.co/image/abc123.jpg'
- *
- * @example
- * // Pandora image - uses proxy (automatic)
- * getOptimalImageUrl('https://content-images.p-cdn.com/image.jpg')
- * // Returns: '/api/image-proxy?url=https%3A%2F%2Fcontent-images.p-cdn.com%2Fimage.jpg'
  */
 export function getOptimalImageUrl(externalUrl: string | undefined): string | undefined {
   if (!externalUrl) {

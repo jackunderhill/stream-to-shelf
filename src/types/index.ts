@@ -64,27 +64,25 @@ export interface BlogPost {
   content: string;
 }
 
-// Spotify API types
-export interface SpotifyArtist {
+// Music catalog types
+export interface Artist {
   id: string;
   name: string;
 }
 
-export interface SpotifyAlbum {
+export interface Album {
   id: string;
   name: string;
-  artists: SpotifyArtist[];
+  artists: Artist[];
   images: { url: string; width: number; height: number }[];
-  release_date: string;
-  album_type: string; // 'album', 'single', 'compilation'
+  release_date?: string;
+  album_type: string;
   total_tracks: number;
-  external_urls: {
-    spotify: string;
-  };
+  url: string;
 }
 
-export interface SpotifySearchResponse {
+export interface AlbumSearchResponse {
   artist: string;
   album?: string;
-  results: SpotifyAlbum[];
+  results: Album[];
 }

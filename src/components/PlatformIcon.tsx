@@ -16,6 +16,10 @@ export default function PlatformIcon({ platform }: { platform: string }) {
     googleStore: ShoppingBagIcon,
     discogs: ShoppingBagIcon,
     hdtracks: MusicalNoteIcon,
+    sevendigital: MusicalNoteIcon,
+    qobuz: MusicalNoteIcon,
+    worldofbooks: ShoppingBagIcon,
+    banquet: ShoppingBagIcon,
   };
 
   const Icon = iconMap[platform] || GlobeAltIcon;
@@ -30,6 +34,10 @@ export default function PlatformIcon({ platform }: { platform: string }) {
     googleStore: 'text-blue-400',
     discogs: 'text-purple-400',
     hdtracks: 'text-green-400',
+    sevendigital: 'text-red-400',
+    qobuz: 'text-blue-300',
+    worldofbooks: 'text-teal-400',
+    banquet: 'text-yellow-400',
   };
 
   const color = colorMap[platform] || 'text-gray-400';

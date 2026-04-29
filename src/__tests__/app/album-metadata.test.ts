@@ -1,9 +1,30 @@
 import { generateMetadata } from '@/app/album/page';
 
+const DEEZER_IMAGE = 'https://e-cdns-images.dzcdn.net/images/cover/okcomputer.jpg';
+
+const mockDeezerResponse = {
+  results: [
+    {
+      id: '1',
+      name: 'OK Computer',
+      url: 'https://www.deezer.com/album/123',
+      images: [{ url: DEEZER_IMAGE, width: 500, height: 500 }],
+      artists: [{ id: '1', name: 'Radiohead' }],
+      release_date: '1997-05-21',
+      album_type: 'album',
+      total_tracks: 12,
+    },
+  ],
+};
+
 describe('Album Page Metadata Generation', () => {
   beforeEach(() => {
     jest.spyOn(console, 'error').mockImplementation(() => {});
     process.env.NEXT_PUBLIC_SITE_URL = 'https://stream-to-shelf.vercel.app';
+    global.fetch = jest.fn().mockResolvedValue({
+      ok: true,
+      json: async () => mockDeezerResponse,
+    });
   });
 
   afterEach(() => {
@@ -46,7 +67,6 @@ describe('Album Page Metadata Generation', () => {
     expect(metadata.openGraph?.description).toContain('OK Computer by Radiohead');
     expect(metadata.openGraph?.siteName).toBe('StreamToShelf');
 
-    // Should include both actual album artwork and generated OG image
     const images = metadata.openGraph?.images as Array<{
       url: string;
       width?: number;
@@ -56,12 +76,12 @@ describe('Album Page Metadata Generation', () => {
 
     expect(images.length).toBeGreaterThanOrEqual(1);
 
-    // First image should be the actual album artwork from Spotify
-    expect(images[0].url).toContain('scdn.co');
+    // First image should be the actual album artwork from Deezer
+    expect(images[0].url).toContain('dzcdn.net');
     expect(images[0].width).toBe(640);
     expect(images[0].height).toBe(640);
 
-    // Second image should be the generated OG image (if available)
+    // Second image should be the generated OG image
     if (images.length > 1) {
       expect(images[1].url).toContain('/api/og');
       expect(images[1].width).toBe(1200);
@@ -81,13 +101,11 @@ describe('Album Page Metadata Generation', () => {
     expect(metadata.twitter?.title).toBe('OK Computer by Radiohead – StreamToShelf');
     expect(metadata.twitter?.description).toContain('OK Computer by Radiohead');
 
-    // Twitter should use actual album artwork if available
     const twitterImages = metadata.twitter?.images as string[];
     expect(twitterImages).toBeDefined();
     expect(twitterImages.length).toBeGreaterThan(0);
-    // Should be either Spotify image or the OG API
     expect(
-      twitterImages[0].includes('scdn.co') ||
+      twitterImages[0].includes('dzcdn.net') ||
       twitterImages[0].includes('/api/og')
     ).toBe(true);
   });
@@ -101,7 +119,6 @@ describe('Album Page Metadata Generation', () => {
 
     expect(metadata.title).toBe('Album Details – StreamToShelf');
     expect(metadata.description).toBe('Find where to buy this album from legitimate music stores.');
-    // Should NOT have OpenGraph metadata when album is missing
     expect(metadata.openGraph).toBeUndefined();
   });
 
@@ -116,7 +133,8 @@ describe('Album Page Metadata Generation', () => {
     });
 
     const images = metadata.openGraph?.images as Array<{ url: string }>;
-    expect(images[0].url).toContain('https://custom-domain.com/api/og');
+    const ogImage = images.find(img => img.url.includes('/api/og'));
+    expect(ogImage?.url).toContain('https://custom-domain.com/api/og');
   });
 
   it('properly encodes special characters in OG image URL', async () => {
@@ -127,11 +145,11 @@ describe('Album Page Metadata Generation', () => {
       }),
     });
 
-    // Should properly encode special characters
     const images = metadata.openGraph?.images as Array<{ url: string }>;
-    expect(images[0].url).toContain('/api/og');
-    expect(images[0].url).toContain('OK%20Computer');
-    expect(images[0].url).toContain('%26'); // & character
-    expect(images[0].url).toContain('Radiohead');
+    const ogImage = images.find(img => img.url.includes('/api/og'));
+    expect(ogImage?.url).toContain('/api/og');
+    expect(ogImage?.url).toContain('OK%20Computer');
+    expect(ogImage?.url).toContain('%26');
+    expect(ogImage?.url).toContain('Radiohead');
   });
 });
