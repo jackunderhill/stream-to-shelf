@@ -176,13 +176,17 @@ async function convertToPlatformLinks(songlink: SonglinkResponse, region: Region
   const albumName = album || firstEntity?.title || '';
 
   // Add digital purchase platforms from Songlink
+  let songlinkAmazonUrl: string | null = null;
+
   for (const [platform, linkData] of Object.entries(songlink.linksByPlatform)) {
     const config = PLATFORM_CONFIG[platform];
     if (!config) continue; // Skip platforms we don't show (streaming services, etc.)
 
-    // Skip Amazon if it's an affiliate link that might 404
-    // We'll use a direct search link instead
-    if (platform === 'amazonStore') continue;
+    if (platform === 'amazonStore') {
+      // Save for later — we'll use this direct product link if available
+      songlinkAmazonUrl = linkData.url;
+      continue;
+    }
 
     links.push({
       platform,
@@ -192,17 +196,23 @@ async function convertToPlatformLinks(songlink: SonglinkResponse, region: Region
     });
   }
 
-  // Add Amazon Music search link (digital downloads - more reliable than affiliate links)
-  // Use region-specific Amazon domain
-  // Use first artist only for search queries (multiple artists often return no results)
+  // Amazon Music: use Songlink's direct product link only if it matches the user's region,
+  // otherwise fall back to a search URL (ASINs are region-specific and cross-region links 404)
   if (artistName && albumName) {
     const searchArtist = getFirstArtist(artistName);
     const amazonQuery = `${searchArtist} ${albumName}`;
     const amazonDomain = AMAZON_DOMAINS[region] || 'amazon.com';
+    let amazonUrl = `https://www.${amazonDomain}/s?k=${encodeURIComponent(amazonQuery)}&i=digital-music`;
+    if (songlinkAmazonUrl) {
+      try {
+        const hostname = new URL(songlinkAmazonUrl).hostname.replace(/^www\./, '');
+        if (hostname === amazonDomain) amazonUrl = songlinkAmazonUrl;
+      } catch { /* malformed URL, keep search fallback */ }
+    }
     links.push({
       platform: 'amazonDigital',
       displayName: 'Amazon Music',
-      url: `https://www.${amazonDomain}/s?k=${encodeURIComponent(amazonQuery)}&i=digital-music`,
+      url: amazonUrl,
       category: 'download',
     });
   }
@@ -327,7 +337,6 @@ export async function GET(request: NextRequest) {
   }
 
   try {
-    // Get all platform links from Songlink
     const songlinkData = await getSonglinkData(url, region);
 
     if (!songlinkData) {

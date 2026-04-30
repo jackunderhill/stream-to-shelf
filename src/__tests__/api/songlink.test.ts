@@ -252,6 +252,87 @@ describe('/api/songlink', () => {
       expect(amazonPhysical.category).toBe('physical');
     });
 
+    it('should use direct Amazon product URL from Songlink when region matches', async () => {
+      const mockSonglinkResponse = {
+        entityUniqueId: 'DEEZER_ALBUM::123',
+        userCountry: 'US',
+        pageUrl: 'https://song.link/test',
+        linksByPlatform: {
+          amazonStore: {
+            country: 'US',
+            url: 'https://amazon.com/dp/B01ABCDEF',
+            entityUniqueId: 'AMAZON_ALBUM::123',
+          },
+        },
+        entitiesByUniqueId: {
+          'DEEZER_ALBUM::123': {
+            id: '123',
+            type: 'album' as const,
+            title: 'OK Computer',
+            artistName: 'Radiohead',
+            apiProvider: 'deezer',
+            platforms: [],
+          },
+        },
+      };
+
+      (global.fetch as jest.Mock).mockImplementation(async (url: string) => {
+        if (typeof url === 'string' && url.includes('discogs')) return { ok: false, status: 404 };
+        return { ok: true, json: async () => mockSonglinkResponse };
+      });
+
+      const request = new NextRequest(
+        'http://localhost:3000/api/songlink?url=https://www.deezer.com/album/123&region=US&artist=Radiohead&album=OK%20Computer'
+      );
+
+      const response = await GET(request);
+      const data = await response.json();
+
+      const amazonLink = data.links.find((link: { platform: string }) => link.platform === 'amazonDigital');
+      expect(amazonLink.url).toBe('https://amazon.com/dp/B01ABCDEF');
+    });
+
+    it('should fall back to search URL when Songlink Amazon link is for a different region', async () => {
+      const mockSonglinkResponse = {
+        entityUniqueId: 'DEEZER_ALBUM::123',
+        userCountry: 'GB',
+        pageUrl: 'https://song.link/test',
+        linksByPlatform: {
+          amazonStore: {
+            country: 'US',
+            url: 'https://amazon.com/dp/B01ABCDEF', // US link, user is GB
+            entityUniqueId: 'AMAZON_ALBUM::123',
+          },
+        },
+        entitiesByUniqueId: {
+          'DEEZER_ALBUM::123': {
+            id: '123',
+            type: 'album' as const,
+            title: 'OK Computer',
+            artistName: 'Radiohead',
+            apiProvider: 'deezer',
+            platforms: [],
+          },
+        },
+      };
+
+      (global.fetch as jest.Mock).mockImplementation(async (url: string) => {
+        if (typeof url === 'string' && url.includes('discogs')) return { ok: false, status: 404 };
+        return { ok: true, json: async () => mockSonglinkResponse };
+      });
+
+      const request = new NextRequest(
+        'http://localhost:3000/api/songlink?url=https://www.deezer.com/album/123&region=GB&artist=Radiohead&album=OK%20Computer'
+      );
+
+      const response = await GET(request);
+      const data = await response.json();
+
+      const amazonLink = data.links.find((link: { platform: string }) => link.platform === 'amazonDigital');
+      expect(amazonLink.url).toContain('amazon.co.uk');
+      expect(amazonLink.url).toContain('/s?k='); // search URL, not direct product
+    });
+
     it('should use correct Amazon domain for region', async () => {
       const mockSonglinkResponse = {
         entityUniqueId: 'SPOTIFY_ALBUM::123',
