@@ -1,108 +1,67 @@
 import type { NextConfig } from "next";
 
+// Hosts that album art loads from directly. Art has no query string, and each new
+// one would be a new image for the optimiser, which is metered.
+const ART_HOSTS = [
+  // Deezer - Primary music source
+  'e-cdns-images.dzcdn.net',
+  'cdns-images.dzcdn.net',
+  'cdn-images.dzcdn.net',
+
+  // Apple Music
+  'is1-ssl.mzstatic.com',
+  'a1.mzstatic.com',
+  'is2-ssl.mzstatic.com',
+  'is3-ssl.mzstatic.com',
+  'is4-ssl.mzstatic.com',
+  'is5-ssl.mzstatic.com',
+
+  // Discogs
+  'img.discogs.com',
+  'i.discogs.com',
+  'a.discogs.com',
+  'st.discogs.com',
+];
+
+// Next's inline bootstrap scripts need 'unsafe-inline' unless every page is rendered
+// per request with a nonce, but this still stops anything loading from another site
+// or sending data to one. Images are same-origin as next/image serves them all.
+const CONTENT_SECURITY_POLICY = [
+  "default-src 'self'",
+  "script-src 'self' 'unsafe-inline'",
+  "style-src 'self' 'unsafe-inline'",
+  "img-src 'self' data:",
+  "object-src 'none'",
+  "base-uri 'self'",
+  "form-action 'self'",
+  "frame-ancestors 'none'",
+].join('; ');
+
+// next dev needs eval for fast refresh, so the policy only applies to real builds
+const isProduction = process.env.NODE_ENV === 'production';
+
 const nextConfig: NextConfig = {
+  async headers() {
+    return [
+      {
+        source: '/(.*)',
+        headers: [
+          { key: 'X-Content-Type-Options', value: 'nosniff' },
+          { key: 'X-Frame-Options', value: 'DENY' },
+          { key: 'Referrer-Policy', value: 'strict-origin-when-cross-origin' },
+          ...(isProduction ? [{ key: 'Content-Security-Policy', value: CONTENT_SECURITY_POLICY }] : []),
+        ],
+      },
+      {
+        // Other sites' files are never treated as a page of ours. This comes last to override the above.
+        source: '/api/image-proxy',
+        headers: [{ key: 'Content-Security-Policy', value: "sandbox; default-src 'none'" }],
+      },
+    ];
+  },
   images: {
-    localPatterns: [
-      {
-        pathname: '/api/image-proxy**',
-      },
-    ],
-    remotePatterns: [
-      // WHITELISTED MAJOR PLATFORMS
-      // These are optimized for speed as they're the most common sources
-
-      // Deezer - Primary music source
-      {
-        protocol: 'https',
-        hostname: 'e-cdns-images.dzcdn.net',
-        port: '',
-        pathname: '/**',
-      },
-      {
-        protocol: 'https',
-        hostname: 'cdns-images.dzcdn.net',
-        port: '',
-        pathname: '/**',
-      },
-      {
-        protocol: 'https',
-        hostname: 'cdn-images.dzcdn.net',
-        port: '',
-        pathname: '/**',
-      },
-
-      // Apple Music
-      {
-        protocol: 'https',
-        hostname: 'is1-ssl.mzstatic.com',
-        port: '',
-        pathname: '/image/**',
-      },
-      {
-        protocol: 'https',
-        hostname: 'a1.mzstatic.com',
-        port: '',
-        pathname: '/**',
-      },
-      {
-        protocol: 'https',
-        hostname: 'is2-ssl.mzstatic.com',
-        port: '',
-        pathname: '/**',
-      },
-      {
-        protocol: 'https',
-        hostname: 'is3-ssl.mzstatic.com',
-        port: '',
-        pathname: '/**',
-      },
-      {
-        protocol: 'https',
-        hostname: 'is4-ssl.mzstatic.com',
-        port: '',
-        pathname: '/**',
-      },
-      {
-        protocol: 'https',
-        hostname: 'is5-ssl.mzstatic.com',
-        port: '',
-        pathname: '/**',
-      },
-
-      // Discogs
-      {
-        protocol: 'https',
-        hostname: 'img.discogs.com',
-        port: '',
-        pathname: '/**',
-      },
-      {
-        protocol: 'https',
-        hostname: 'i.discogs.com',
-        port: '',
-        pathname: '/**',
-      },
-      {
-        protocol: 'https',
-        hostname: 'a.discogs.com',
-        port: '',
-        pathname: '/**',
-      },
-      {
-        protocol: 'https',
-        hostname: 'st.discogs.com',
-        port: '',
-        pathname: '/**',
-      },
-
-      // Image Proxy - Handles all other platforms automatically
-      {
-        protocol: 'https',
-        hostname: process.env.VERCEL_URL || process.env.NEXT_PUBLIC_BASE_URL?.replace(/^https?:\/\//, '') || 'localhost',
-        port: '',
-        pathname: '/api/image-proxy',
-      },
-    ],
+    localPatterns: [{ pathname: '/api/image-proxy' }],
+    remotePatterns: ART_HOSTS.map((hostname) => ({ protocol: 'https', hostname, pathname: '/**', search: '' })),
   },
 };
 

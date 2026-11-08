@@ -2,6 +2,7 @@ import { Metadata } from 'next';
 import { Suspense } from 'react';
 import AlbumPageClient from './AlbumPageClient';
 import AlbumPageFallback from './AlbumPageFallback';
+import { SITE_URL } from '@/lib/site-url';
 
 type Props = {
   searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
@@ -11,7 +12,7 @@ async function fetchAlbumArtwork(artist: string, album: string): Promise<string 
   try {
     // Only try to fetch artwork if we have a working base URL
     // During build time, we skip this as there's no server running
-    const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://stream-to-shelf.vercel.app';
+    const baseUrl = SITE_URL;
 
     // Don't attempt internal fetches during build time
     // The API will only be available at runtime
@@ -63,7 +64,7 @@ export async function generateMetadata({ searchParams }: Props): Promise<Metadat
   const pageTitle = artist && album ? `${album} by ${artist} – StreamToShelf` : 'Album Details – StreamToShelf';
   const pageDescription = artist && album ? `Find where to buy ${album} by ${artist} from legitimate music stores.` : 'Find where to buy this album from legitimate music stores.';
 
-  const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://stream-to-shelf.vercel.app';
+  const baseUrl = SITE_URL;
 
   // Build URLs using string concatenation to avoid URL constructor issues in metadata generation
   const pageUrl = artist && album

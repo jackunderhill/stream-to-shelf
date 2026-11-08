@@ -3,11 +3,64 @@
 import { useSearchParams } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import Image from 'next/image';
-import { SearchResult } from '@/types';
+import Link from 'next/link';
+import { PlatformLink, SearchResult } from '@/types';
 import PlatformIcon from '@/components/PlatformIcon';
 import { detectRegion } from '@/lib/region';
 import { useSearchPreview } from '@/contexts/SearchPreviewContext';
 import { getOptimalImageUrl } from '@/lib/image-proxy';
+
+const BACK_LINK_CLASSES = 'text-blue-400 hover:text-blue-300 transition-colors inline-flex items-center gap-2 cursor-pointer';
+
+function BackArrow() {
+  return (
+    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+    </svg>
+  );
+}
+
+function linkLabel(link: PlatformLink) {
+  if (link.isSearch) return `Search for this album on ${link.displayName}`;
+  // We can't see stock on artists' own sites, so don't promise that it can be bought
+  if (link.platform === 'artistStore') return "View this album in the artist's store";
+  if (link.platform === 'officialSite') return "Visit the artist's official site";
+  return `Buy ${link.category === 'download' ? 'digital download' : 'physical media'} on ${link.displayName}`;
+}
+
+interface LinkSectionProps {
+  id: string;
+  title: string;
+  titleClassName: string;
+  cardClassName: string;
+  links: PlatformLink[];
+}
+
+function LinkSection({ id, title, titleClassName, cardClassName, links }: LinkSectionProps) {
+  return (
+    <section aria-labelledby={id}>
+      <h2 id={id} className={`text-2xl font-bold mb-6 ${titleClassName}`}>
+        {title}
+      </h2>
+      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+        {links.map((link) => (
+          <a
+            key={link.url}
+            href={link.url}
+            target="_blank"
+            rel="noopener noreferrer"
+            className={`rounded-lg p-6 text-center transition-all hover:scale-105 border flex flex-col items-center cursor-pointer ${cardClassName}`}
+            aria-label={linkLabel(link)}
+          >
+            <PlatformIcon platform={link.platform} />
+            <div className="font-semibold text-white text-lg">{link.displayName}</div>
+            {link.isSearch && <div className="text-sm text-gray-400 mt-1">Search</div>}
+          </a>
+        ))}
+      </div>
+    </section>
+  );
+}
 
 export default function AlbumPageClient() {
   const searchParams = useSearchParams();
@@ -21,11 +74,11 @@ export default function AlbumPageClient() {
     previewData.artist === artist &&
     previewData.title === album;
 
-  // Get album URL from preview data (used for API call)
-  const albumUrl = hasPreviewData ? previewData.albumUrl : '';
-
-  // Track if we started with preview data (this won't change when preview data is cleared)
-  const [startedWithPreview] = useState(hasPreviewData);
+  // Keep the clicked album's URL (used for API call) after preview data is cleared.
+  // If it changed then, the fetch below would abort and restart without it.
+  const [clickedAlbum] = useState(hasPreviewData ? { artist, album, url: previewData.albumUrl } : null);
+  const startedWithPreview = clickedAlbum !== null;
+  const albumUrl = clickedAlbum?.artist === artist && clickedAlbum.album === album ? clickedAlbum.url : '';
 
   // Initialize state with preview data if available
   const [results, setResults] = useState<SearchResult | null>(() => {
@@ -60,33 +113,15 @@ export default function AlbumPageClient() {
       setError(null);
 
       try {
-        let urlToUse = albumUrl;
-        let fallbackImageUrl: string | undefined;
-
-        // If we don't have an album URL from preview data, look it up first
-        if (!urlToUse) {
-          const searchResponse = await fetch(
-            `/api/deezer-search?artist=${encodeURIComponent(artist)}&album=${encodeURIComponent(album)}`,
-            { signal: abortController.signal }
-          );
-
-          if (!searchResponse.ok) {
-            throw new Error('Failed to find album');
-          }
-
-          const searchData = await searchResponse.json();
-
-          if (searchData.results && searchData.results.length > 0) {
-            const firstResult = searchData.results[0];
-            urlToUse = firstResult.url;
-            fallbackImageUrl = firstResult.images?.[0]?.url;
-          } else {
-            throw new Error('Album not found');
-          }
-        }
+        const params = new URLSearchParams({
+          artist,
+          album,
+          region,
+          ...(albumUrl && { url: albumUrl }),
+        });
 
         const response = await fetch(
-          `/api/songlink?url=${encodeURIComponent(urlToUse)}&region=${region}&artist=${encodeURIComponent(artist)}&album=${encodeURIComponent(album)}`,
+          `/api/buy-links?${params}`,
           { signal: abortController.signal }
         );
 
@@ -95,11 +130,6 @@ export default function AlbumPageClient() {
         }
 
         const data = await response.json();
-
-        if (data.metadata && !data.metadata.artwork && fallbackImageUrl) {
-          data.metadata.artwork = fallbackImageUrl;
-        }
-
         setResults(data);
         setHasFetchedData(true);
       } catch (err) {
@@ -111,7 +141,8 @@ export default function AlbumPageClient() {
         setHasFetchedData(true);
         console.error(err);
       } finally {
-        setLoading(false);
+        // An aborted request has been replaced, and the new one is still loading
+        if (!abortController.signal.aborted) setLoading(false);
       }
     };
 
@@ -134,21 +165,31 @@ export default function AlbumPageClient() {
     }
   }, [hasPreviewData, setPreviewData]);
 
+  // An artist ID gets the right artist's full discography, while a name search is partial and fuzzy
+  const artistId = results?.metadata?.artistId;
+  const artistSearchParams = new URLSearchParams({ artist, ...(artistId && { artistId }) });
+
   return (
     <div className="min-h-screen bg-gradient-to-b from-gray-900 via-gray-800 to-gray-900">
       <div className="container mx-auto px-4 py-8">
         {/* Header with back link */}
         <div className="mb-8">
-          <button
-            onClick={() => window.history.back()}
-            className="text-blue-400 hover:text-blue-300 transition-colors inline-flex items-center gap-2 cursor-pointer"
-            aria-label="Go back to search results"
-          >
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
-            </svg>
-            Back to Results
-          </button>
+          {/* Direct visits have no results to go back to, so offer the artist's albums instead */}
+          {startedWithPreview || !artist ? (
+            <button
+              onClick={() => window.history.back()}
+              className={BACK_LINK_CLASSES}
+              aria-label="Go back to search results"
+            >
+              <BackArrow />
+              Back to Results
+            </button>
+          ) : (
+            <Link href={`/search?${artistSearchParams}`} className={BACK_LINK_CLASSES}>
+              <BackArrow />
+              Search other albums by this artist
+            </Link>
+          )}
         </div>
 
         {/* Show album info immediately if we have results (preview or real data) */}
@@ -187,77 +228,22 @@ export default function AlbumPageClient() {
         )}
 
         {/* Buy Links - only show when finished loading */}
-        {!loading && !error && results && (
-          <div>
-
-            {/* No Buy Links - only show if we've actually fetched data and got no links */}
-            {results.links.length === 0 && hasFetchedData && (
-              <div className="bg-gray-800/50 rounded-lg p-8 text-center">
-                <p className="text-gray-400 text-lg">
-                  No buy links found for this album.
-                </p>
-                <p className="text-gray-500 mt-2">
-                  This album might not be available for purchase digitally.
-                </p>
-              </div>
-            )}
-
-            {/* Buy Links - Grouped by Format */}
-            {results.links.length > 0 && (
-              <div className="space-y-12">
-                {/* Digital Downloads Section */}
-                {results.links.filter(link => link.category === 'download').length > 0 && (
-                  <section aria-labelledby="digital-downloads-heading">
-                    <h2 id="digital-downloads-heading" className="text-2xl font-bold mb-6 text-blue-400">
-                      Digital Downloads
-                    </h2>
-                    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
-                      {results.links
-                        .filter(link => link.category === 'download')
-                        .map((link) => (
-                          <a
-                            key={link.url}
-                            href={link.url}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="bg-blue-900/20 hover:bg-blue-900/30 rounded-lg p-6 text-center transition-all hover:scale-105 border border-blue-700 hover:border-blue-600 flex flex-col items-center cursor-pointer"
-                            aria-label={`Buy digital download on ${link.displayName}`}
-                          >
-                            <PlatformIcon platform={link.platform} />
-                            <div className="font-semibold text-white text-lg">{link.displayName}</div>
-                          </a>
-                        ))}
-                    </div>
-                  </section>
-                )}
-
-                {/* Physical Media Section */}
-                {results.links.filter(link => link.category === 'physical').length > 0 && (
-                  <section aria-labelledby="physical-media-heading">
-                    <h2 id="physical-media-heading" className="text-2xl font-bold mb-6 text-green-400">
-                      Physical Media (CDs, Vinyl, Cassettes)
-                    </h2>
-                    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
-                      {results.links
-                        .filter(link => link.category === 'physical')
-                        .map((link) => (
-                          <a
-                            key={link.url}
-                            href={link.url}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="bg-green-900/20 hover:bg-green-900/30 rounded-lg p-6 text-center transition-all hover:scale-105 border border-green-700 hover:border-green-600 flex flex-col items-center cursor-pointer"
-                            aria-label={`Buy physical media on ${link.displayName}`}
-                          >
-                            <PlatformIcon platform={link.platform} />
-                            <div className="font-semibold text-white text-lg">{link.displayName}</div>
-                          </a>
-                        ))}
-                    </div>
-                  </section>
-                )}
-              </div>
-            )}
+        {!loading && !error && results && results.links.length > 0 && (
+          <div className="space-y-12">
+            <LinkSection
+              id="digital-downloads-heading"
+              title="Digital Downloads"
+              titleClassName="text-blue-400"
+              cardClassName="bg-blue-900/20 hover:bg-blue-900/30 border-blue-700 hover:border-blue-600"
+              links={results.links.filter((link) => link.category === 'download')}
+            />
+            <LinkSection
+              id="physical-media-heading"
+              title="Physical Media (CDs, Vinyl, Cassettes)"
+              titleClassName="text-green-400"
+              cardClassName="bg-green-900/20 hover:bg-green-900/30 border-green-700 hover:border-green-600"
+              links={results.links.filter((link) => link.category === 'physical')}
+            />
           </div>
         )}
       </div>

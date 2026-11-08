@@ -5,30 +5,14 @@
   "framework": "nextjs",
   "regions": ["iad1"],
   "functions": {
-    "src/app/api/spotify-search/route.ts": {
+    "src/app/api/deezer-search/route.ts": {
       "maxDuration": 30
     },
-    "src/app/api/songlink/route.ts": {
-      "maxDuration": 30
+    "src/app/api/buy-links/route.ts": {
+      "maxDuration": 40
+    },
+    "src/app/api/image-proxy/route.ts": {
+      "maxDuration": 15
     }
-  },
-  "headers": [
-    {
-      "source": "/api/(.*)",
-      "headers": [
-        {
-          "key": "Access-Control-Allow-Origin",
-          "value": "*"
-        },
-        {
-          "key": "Access-Control-Allow-Methods",
-          "value": "GET, POST, PUT, DELETE, OPTIONS"
-        },
-        {
-          "key": "Access-Control-Allow-Headers",
-          "value": "Content-Type, Authorization"
-        }
-      ]
-    }
-  ]
+  }
 }

@@ -26,8 +26,10 @@ export default function PrivacyPage() {
             <p className="mb-4">We use the following third-party services to power search results:</p>
             <ul className="list-disc pl-6 space-y-2">
               <li><strong className="text-white">Deezer API</strong> — artist and album search</li>
-              <li><strong className="text-white">Odesli / song.link</strong> — resolving purchase links across platforms</li>
+              <li><strong className="text-white">MusicBrainz</strong> — finding direct links to albums on music stores</li>
+              <li><strong className="text-white">iTunes Search API</strong> — iTunes store links</li>
               <li><strong className="text-white">Discogs API</strong> — physical media links</li>
+              <li><strong className="text-white">Tavily</strong> — finding album pages on stores and artists&apos; websites, using only the artist and album name</li>
               <li><strong className="text-white">Vercel Analytics</strong> — anonymous page view statistics</li>
             </ul>
           </section>

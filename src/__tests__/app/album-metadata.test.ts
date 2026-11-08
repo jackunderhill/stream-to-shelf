@@ -78,8 +78,8 @@ describe('Album Page Metadata Generation', () => {
 
     // First image should be the actual album artwork from Deezer
     expect(images[0].url).toContain('dzcdn.net');
-    expect(images[0].width).toBe(640);
-    expect(images[0].height).toBe(640);
+    expect(images[0].width).toBe(500);
+    expect(images[0].height).toBe(500);
 
     // Second image should be the generated OG image
     if (images.length > 1) {
@@ -124,8 +124,10 @@ describe('Album Page Metadata Generation', () => {
 
   it('uses custom base URL from environment variable', async () => {
     process.env.NEXT_PUBLIC_SITE_URL = 'https://custom-domain.com';
+    jest.resetModules();
+    const { generateMetadata: generateCustomMetadata } = await import('@/app/album/page');
 
-    const metadata = await generateMetadata({
+    const metadata = await generateCustomMetadata({
       searchParams: Promise.resolve({
         artist: 'Radiohead',
         album: 'OK Computer',

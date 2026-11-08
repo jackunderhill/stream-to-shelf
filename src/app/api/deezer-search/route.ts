@@ -1,34 +1,17 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { getArtistAlbums } from '@/lib/artist-albums';
+import { DeezerAlbum, filterByTitle, findArtistByName, searchAlbums } from '@/lib/deezer';
 import { Album, AlbumSearchResponse } from '@/types';
 
-const API_TIMEOUT = 10000;
-
-async function fetchWithTimeout(url: string, timeout = API_TIMEOUT): Promise<Response> {
-  const controller = new AbortController();
-  const id = setTimeout(() => controller.abort(), timeout);
-  try {
-    const response = await fetch(url, { signal: controller.signal });
-    clearTimeout(id);
-    return response;
-  } catch (error) {
-    clearTimeout(id);
-    throw error;
-  }
-}
-
-interface DeezerAlbum {
-  id: number;
-  title: string;
-  link: string;
-  cover_xl: string;
-  cover_big: string;
-  release_date?: string;
-  record_type: string;
-  nb_tracks?: number;
-  artist?: {
-    id: number;
-    name: string;
-  };
+/**
+ * Search for an artist by name alone. Album search is limited, and filling it
+ * with similar names left Bonobo with 4 of 40 results and Lady_Bonobo_ with 26,
+ * so use the artist's discography if the name is exact, and otherwise search.
+ */
+async function searchByArtistName(artist: string): Promise<DeezerAlbum[]> {
+  const match = await findArtistByName(artist);
+  const albums = match ? await getArtistAlbums(String(match.id), match.name) : [];
+  return albums.length > 0 ? albums : searchAlbums(artist);
 }
 
 function mapDeezerAlbum(album: DeezerAlbum, fallbackArtistName: string): Album {
@@ -44,27 +27,6 @@ function mapDeezerAlbum(album: DeezerAlbum, fallbackArtistName: string): Album {
   };
 }
 
-// Fetch full discography by artist ID — includes singles, EPs, live albums, and release dates
-async function fetchByArtistId(artistId: string, artistName: string): Promise<DeezerAlbum[]> {
-  const url = `https://api.deezer.com/artist/${artistId}/albums?limit=100`;
-  const response = await fetchWithTimeout(url);
-  if (!response.ok) throw new Error(`Deezer artist albums failed: ${response.status}`);
-  const data = await response.json();
-  return (data.data ?? []).map((album: DeezerAlbum) => ({
-    ...album,
-    artist: { id: Number(artistId), name: artistName },
-  }));
-}
-
-// Text search fallback when no artist ID is available
-async function fetchBySearch(query: string): Promise<DeezerAlbum[]> {
-  const url = `https://api.deezer.com/search/album?q=${encodeURIComponent(query)}&limit=50`;
-  const response = await fetchWithTimeout(url);
-  if (!response.ok) throw new Error(`Deezer search failed: ${response.status}`);
-  const data = await response.json();
-  return data.data ?? [];
-}
-
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
 
@@ -78,6 +40,11 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: 'Artist parameter is required' }, { status: 400 });
   }
 
+  // It goes into a Deezer API path, and each new value is a new cache entry
+  if (artistId && !/^\d{1,15}$/.test(artistId)) {
+    return NextResponse.json({ error: 'Invalid artist ID' }, { status: 400 });
+  }
+
   const sanitizedArtist = artist.trim().substring(0, 100);
   const sanitizedAlbum = album?.trim().substring(0, 100);
 
@@ -86,26 +53,14 @@ export async function GET(request: NextRequest) {
 
     if (artistId) {
       // Use the artist discography endpoint for complete results
-      albums = await fetchByArtistId(artistId, sanitizedArtist);
+      albums = await getArtistAlbums(artistId, sanitizedArtist);
+      if (sanitizedAlbum) {
+        albums = filterByTitle(albums, sanitizedAlbum);
+      }
+    } else if (sanitizedAlbum) {
+      albums = await searchAlbums(sanitizedArtist, sanitizedAlbum);
     } else {
-      // Fall back to text search
-      const query = sanitizedAlbum
-        ? `artist:"${sanitizedArtist}" album:"${sanitizedAlbum}"`
-        : `artist:"${sanitizedArtist}"`;
-      albums = await fetchBySearch(query);
-
-      // Filter to correct artist by name
-      const artistLower = sanitizedArtist.toLowerCase();
-      albums = albums.filter((item) => {
-        const itemArtist = item.artist?.name.toLowerCase() ?? '';
-        return itemArtist.includes(artistLower) || artistLower.includes(itemArtist);
-      });
-    }
-
-    // If an album name was specified, filter to matching titles
-    if (sanitizedAlbum) {
-      const albumLower = sanitizedAlbum.toLowerCase();
-      albums = albums.filter((item) => item.title.toLowerCase().includes(albumLower));
+      albums = await searchByArtistName(sanitizedArtist);
     }
 
     const jsonResponse = NextResponse.json<AlbumSearchResponse>({

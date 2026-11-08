@@ -131,6 +131,20 @@ describe('/api/artist-autocomplete', () => {
     expect(data.error).toBe('Artist search failed');
   });
 
+  it('reports the quota errors that Deezer sends as HTTP 200', async () => {
+    (global.fetch as jest.Mock).mockResolvedValueOnce({
+      ok: true,
+      status: 200,
+      json: async () => ({ error: { type: 'Exception', message: 'Quota limit exceeded', code: 4 } }),
+    });
+
+    const request = new NextRequest('http://localhost:3000/api/artist-autocomplete?query=radiohead');
+    const response = await GET(request);
+
+    expect(response.status).toBe(500);
+    expect(console.error).toHaveBeenCalled();
+  });
+
   it('handles network errors gracefully', async () => {
     (global.fetch as jest.Mock).mockRejectedValueOnce(new Error('Network error'));
 
@@ -139,7 +153,7 @@ describe('/api/artist-autocomplete', () => {
 
     expect(response.status).toBe(500);
     const data = await response.json();
-    expect(data.error).toBe('Internal server error');
+    expect(data.error).toBe('Artist search failed');
   });
 
   it('returns empty array on timeout errors', async () => {

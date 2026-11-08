@@ -1,87 +1,70 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { fetchWithTimeout } from '@/lib/fetch-with-timeout';
 
 /**
  * Image Proxy Endpoint
  *
- * This endpoint proxies external images, allowing us to serve images from any domain
- * without needing to whitelist them in next.config.ts. This is useful for:
- * - Handling images from many different music platforms via Songlink
- * - Caching images for better performance
- * - Resizing/optimizing images on-the-fly
+ * Serves artwork from CDN hosts that aren't listed in next.config.ts. Album art only
+ * comes from these sources, so nothing else is fetched: an open proxy could be pointed
+ * at internal addresses, and would host anyone's content on our domain.
  *
- * Usage: /api/image-proxy?url=https://example.com/image.jpg
+ * Usage: /api/image-proxy?url=https://cdn-images.dzcdn.net/image.jpg
  */
 
-// Disable caching for this API route to ensure we always fetch fresh images
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
 
 const MAX_IMAGE_SIZE = 10 * 1024 * 1024; // 10MB
 const REQUEST_TIMEOUT = 10000; // 10 seconds
-const ALLOWED_PROTOCOLS = ['http:', 'https:'];
+const ALLOWED_HOST_SUFFIXES = ['.dzcdn.net', '.mzstatic.com', '.discogs.com'];
+const REFERER = 'https://streamtoshelf.com';
 
 /**
- * Validate that the image URL is safe to proxy
+ * Validate that the image URL is on a host that serves album art. Art has no query
+ * string, and each new one would be a new image for the optimiser, which is metered.
  */
 function validateImageUrl(urlString: string): URL | null {
   try {
     const url = new URL(urlString);
+    const isAllowedHost = ALLOWED_HOST_SUFFIXES.some((suffix) => url.hostname.toLowerCase().endsWith(suffix));
 
-    // Only allow http/https
-    if (!ALLOWED_PROTOCOLS.includes(url.protocol)) {
-      console.warn(`Rejected image proxy request with protocol: ${url.protocol}`);
-      return null;
-    }
-
-    // Prevent SSRF attacks - reject localhost and private IPs
-    const hostname = url.hostname.toLowerCase();
-    if (
-      hostname === 'localhost' ||
-      hostname === '127.0.0.1' ||
-      hostname.startsWith('192.168.') ||
-      hostname.startsWith('10.') ||
-      hostname.startsWith('172.') ||
-      hostname === '0.0.0.0'
-    ) {
-      console.warn(`Rejected image proxy request to private IP: ${hostname}`);
+    if (url.protocol !== 'https:' || !isAllowedHost || url.search) {
+      console.warn(`Rejected image proxy request for: ${url.protocol}//${url.hostname}`);
       return null;
     }
 
     return url;
   } catch {
-    console.warn(`Invalid image URL provided to proxy: ${urlString}`);
+    console.warn('Invalid image URL provided to proxy');
     return null;
   }
 }
 
-/**
- * Fetch image with timeout
- */
-async function fetchImageWithTimeout(
-  url: URL,
-  timeout = REQUEST_TIMEOUT
-): Promise<Response | null> {
-  const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), timeout);
+/** Read a body up to the size limit. Content-Length is optional, so it can't be relied on. */
+async function readWithLimit(response: Response): Promise<Uint8Array | null> {
+  const chunks: Uint8Array[] = [];
+  let size = 0;
+  const reader = response.body?.getReader();
 
-  try {
-    const response = await fetch(url.toString(), {
-      signal: controller.signal,
-      headers: {
-        'User-Agent':
-          'Mozilla/5.0 (compatible; StreamToShelf/1.0; +https://stream-to-shelf.vercel.app)',
-        'Accept': 'image/*',
-        // Don't follow redirects that might be infinite
-        'Referer': 'https://stream-to-shelf.vercel.app',
-      },
-    });
+  while (reader) {
+    const { done, value } = await reader.read();
+    if (done) break;
 
-    clearTimeout(timeoutId);
-    return response;
-  } catch {
-    clearTimeout(timeoutId);
-    return null;
+    size += value.byteLength;
+    if (size > MAX_IMAGE_SIZE) {
+      await reader.cancel();
+      return null;
+    }
+    chunks.push(value);
   }
+
+  const body = new Uint8Array(size);
+  let offset = 0;
+  for (const chunk of chunks) {
+    body.set(chunk, offset);
+    offset += chunk.byteLength;
+  }
+  return body;
 }
 
 export async function GET(request: NextRequest): Promise<NextResponse> {
@@ -97,6 +80,14 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       );
     }
 
+    // Same for extra parameters on this request
+    if (searchParams.size > 1) {
+      return NextResponse.json(
+        { error: 'Unexpected parameters' },
+        { status: 400 }
+      );
+    }
+
     // Validate and sanitize the URL
     const validatedUrl = validateImageUrl(imageUrl);
     if (!validatedUrl) {
@@ -106,10 +97,15 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       );
     }
 
-    // Fetch the image
-    const imageResponse = await fetchImageWithTimeout(validatedUrl);
-
-    if (!imageResponse) {
+    // Redirects aren't followed, as they could leave the allowed hosts
+    let imageResponse: Response;
+    try {
+      imageResponse = await fetchWithTimeout(
+        validatedUrl.toString(),
+        { redirect: 'error', headers: { 'Accept': 'image/*', 'Referer': REFERER } },
+        REQUEST_TIMEOUT
+      );
+    } catch {
       return NextResponse.json(
         { error: 'Failed to fetch image' },
         { status: 503 }
@@ -118,37 +114,23 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
 
     if (!imageResponse.ok) {
       return NextResponse.json(
-        { error: `Image server returned ${imageResponse.status}` },
-        { status: imageResponse.status }
+        { error: 'Failed to fetch image' },
+        { status: 502 }
       );
     }
 
-    // Check content type is actually an image
-    const contentType = imageResponse.headers.get('content-type');
-    if (!contentType || !contentType.startsWith('image/')) {
-      console.warn(
-        `Rejected non-image content from ${validatedUrl.hostname}: ${contentType}`
-      );
+    // Only raster images. SVGs can run scripts, which would run on our domain.
+    const contentType = imageResponse.headers.get('content-type')?.toLowerCase();
+    if (!contentType?.startsWith('image/') || contentType.includes('svg')) {
+      console.warn(`Rejected non-image content from ${validatedUrl.hostname}: ${contentType}`);
       return NextResponse.json(
         { error: 'URL does not return an image' },
         { status: 400 }
       );
     }
 
-    // Check file size
-    const contentLength = imageResponse.headers.get('content-length');
-    if (contentLength && parseInt(contentLength, 10) > MAX_IMAGE_SIZE) {
-      return NextResponse.json(
-        { error: 'Image file too large' },
-        { status: 413 }
-      );
-    }
-
-    // Stream the image data
-    const buffer = await imageResponse.arrayBuffer();
-
-    // Double-check size after fetching
-    if (buffer.byteLength > MAX_IMAGE_SIZE) {
+    const body = await readWithLimit(imageResponse);
+    if (!body) {
       return NextResponse.json(
         { error: 'Image file too large' },
         { status: 413 }
@@ -156,7 +138,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     }
 
     // Return the image with appropriate headers
-    const response = new NextResponse(buffer, {
+    const response = new NextResponse(body as BodyInit, {
       status: 200,
       headers: {
         'Content-Type': contentType,

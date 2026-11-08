@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from '@testing-library/react';
+import { act, render, screen, waitFor } from '@testing-library/react';
 import '@testing-library/jest-dom';
 import { useSearchParams } from 'next/navigation';
 import AlbumPageClient from '@/app/album/AlbumPageClient';
@@ -89,22 +89,8 @@ describe('AlbumPageClient', () => {
       return null;
     });
 
-    // Mock the Deezer search API response (to get the album URL)
-    const mockSearchResponse = {
-      artist: 'Radiohead',
-      results: [
-        {
-          id: '1',
-          name: 'OK Computer',
-          url: 'https://www.deezer.com/album/123',
-          images: [{ url: 'https://example.com/ok.jpg' }],
-          artists: [{ name: 'Radiohead' }],
-        },
-      ],
-    };
-
-    // Mock the songlink API response (buy links)
-    const mockSonglinkResponse = {
+    // Mock the buy links API response
+    const mockBuyLinksResponse = {
       links: [
         {
           platform: 'itunes',
@@ -126,16 +112,10 @@ describe('AlbumPageClient', () => {
       },
     };
 
-    // Mock both API calls in sequence
-    (global.fetch as jest.Mock)
-      .mockResolvedValueOnce({
-        ok: true,
-        json: async () => mockSearchResponse,
-      })
-      .mockResolvedValueOnce({
-        ok: true,
-        json: async () => mockSonglinkResponse,
-      });
+    (global.fetch as jest.Mock).mockResolvedValueOnce({
+      ok: true,
+      json: async () => mockBuyLinksResponse,
+    });
 
     render(<AlbumPageClient />, { wrapper: TestWrapper });
 
@@ -181,7 +161,7 @@ describe('AlbumPageClient', () => {
     };
 
     // Mock AbortController
-    global.AbortController = jest.fn(() => mockAbortController) as unknown as typeof AbortController;
+    jest.spyOn(global, 'AbortController').mockImplementation((() => mockAbortController) as never);
 
     (global.fetch as jest.Mock).mockImplementation(
       () => new Promise(() => {}) // Never resolves
@@ -189,9 +169,9 @@ describe('AlbumPageClient', () => {
 
     const { unmount } = render(<AlbumPageClient />, { wrapper: TestWrapper });
 
-    // Verify fetch was called with abort signal (for deezer-search)
+    // Verify fetch was called with abort signal
     expect(global.fetch).toHaveBeenCalledWith(
-      expect.stringContaining('/api/deezer-search'),
+      expect.stringContaining('/api/buy-links'),
       expect.objectContaining({
         signal: mockAbortController.signal,
       })
@@ -209,7 +189,7 @@ describe('AlbumPageClient', () => {
     let controllerCount = 0;
 
     // Mock AbortController to track each instance
-    global.AbortController = jest.fn(() => {
+    jest.spyOn(global, 'AbortController').mockImplementation((() => {
       const abortMock = jest.fn();
       abortMocks.push(abortMock);
       controllerCount++;
@@ -217,7 +197,7 @@ describe('AlbumPageClient', () => {
         signal: { aborted: false },
         abort: abortMock,
       };
-    }) as unknown as typeof AbortController;
+    }) as never);
 
     (global.fetch as jest.Mock).mockImplementation(
       () => new Promise(() => {}) // Never resolves
@@ -263,57 +243,158 @@ describe('AlbumPageClient', () => {
 
     render(<AlbumPageClient />, { wrapper: TestWrapper });
 
-    // Wait for any potential error message
-    await waitFor(() => {
-      expect(screen.queryByText('Failed to fetch buy links. Please try again.')).not.toBeInTheDocument();
+    // Let the rejection be handled, as the message can't have appeared before that
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 0));
     });
+
+    expect(screen.queryByText('Failed to fetch buy links. Please try again.')).not.toBeInTheDocument();
   });
 
-  it('handles no buy links gracefully', async () => {
+  it('requests buy links by name when opened from a shared link', async () => {
+    mockSearchParams.get.mockImplementation((key: string) => {
+      if (key === 'artist') return 'Mae Muller';
+      if (key === 'album') return 'Sorry I’m Late';
+      return null;
+    });
+
+    (global.fetch as jest.Mock).mockImplementation(() => new Promise(() => {}));
+
+    render(<AlbumPageClient />, { wrapper: TestWrapper });
+
+    expect(global.fetch).toHaveBeenCalledTimes(1);
+    const url = new URL((global.fetch as jest.Mock).mock.calls[0][0], 'http://localhost');
+    expect(url.pathname).toBe('/api/buy-links');
+    expect(url.searchParams.get('artist')).toBe('Mae Muller');
+    expect(url.searchParams.get('album')).toBe('Sorry I’m Late');
+    expect(url.searchParams.get('region')).toBe('US');
+    expect(url.searchParams.has('url')).toBe(false);
+  });
+
+  it('labels links that go to a store search rather than the album', async () => {
     mockSearchParams.get.mockImplementation((key: string) => {
       if (key === 'artist') return 'Radiohead';
       if (key === 'album') return 'OK Computer';
       return null;
     });
 
-    // Mock the Deezer search API response
-    const mockSearchResponse = {
-      artist: 'Radiohead',
-      results: [
-        {
-          id: '1',
-          name: 'OK Computer',
-          url: 'https://www.deezer.com/album/123',
-          images: [{ url: 'https://example.com/ok.jpg' }],
-          artists: [{ name: 'Radiohead' }],
-        },
-      ],
-    };
-
-    // Mock songlink response with no links
-    const mockSonglinkResponse = {
-      links: [],
-      metadata: {
-        title: 'Test Album',
-        artistName: 'Test Artist',
-        artwork: 'https://example.com/art.jpg',
-      },
-    };
-
-    (global.fetch as jest.Mock)
-      .mockResolvedValueOnce({
-        ok: true,
-        json: async () => mockSearchResponse,
-      })
-      .mockResolvedValueOnce({
-        ok: true,
-        json: async () => mockSonglinkResponse,
-      });
+    (global.fetch as jest.Mock).mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({
+        links: [
+          { platform: 'bandcamp', displayName: 'Bandcamp', url: 'https://bandcamp.com/search?q=x', category: 'download', isSearch: true },
+          { platform: 'itunes', displayName: 'iTunes', url: 'https://music.apple.com/album/1', category: 'download' },
+          { platform: 'banquet', displayName: 'Banquet Records', url: 'https://banquet.com/search?q=x', category: 'physical', isSearch: true },
+        ],
+        metadata: { title: 'OK Computer', artistName: 'Radiohead' },
+      }),
+    });
 
     render(<AlbumPageClient />, { wrapper: TestWrapper });
 
-    await waitFor(() => {
-      expect(screen.getByText('No buy links found for this album.')).toBeInTheDocument();
+    expect(await screen.findByRole('link', { name: 'Search for this album on Bandcamp' })).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Search for this album on Banquet Records' })).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Buy digital download on iTunes' })).toBeInTheDocument();
+    expect(screen.getAllByText('Search')).toHaveLength(2);
+  });
+
+  it("does not promise that an artist's store has the album in stock", async () => {
+    mockSearchParams.get.mockImplementation((key: string) => {
+      if (key === 'artist') return 'Mae Muller';
+      if (key === 'album') return 'Sorry I’m Late';
+      return null;
+    });
+
+    (global.fetch as jest.Mock).mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({
+        links: [
+          { platform: 'artistStore', displayName: "Artist's store", url: 'https://shop.maemuller.com/products/cd', category: 'physical' },
+          { platform: 'officialSite', displayName: 'Official site', url: 'https://www.maemuller.com/', category: 'physical' },
+        ],
+        metadata: { title: 'Sorry I’m Late', artistName: 'Mae Muller' },
+      }),
+    });
+
+    render(<AlbumPageClient />, { wrapper: TestWrapper });
+
+    expect(await screen.findByRole('link', { name: "View this album in the artist's store" })).toHaveAttribute(
+      'href',
+      'https://shop.maemuller.com/products/cd'
+    );
+    expect(screen.getByRole('link', { name: "Visit the artist's official site" })).toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: /^Buy/ })).not.toBeInTheDocument();
+  });
+
+  describe('Back link', () => {
+    const OTHER_ALBUMS = 'Search other albums by this artist';
+
+    const mockDirectVisit = () => {
+      mockSearchParams.get.mockImplementation((key: string) => {
+        if (key === 'artist') return 'Mae Muller';
+        if (key === 'album') return 'Sorry I’m Late';
+        return null;
+      });
+    };
+
+    it('links a direct visit to a search for the artist', () => {
+      mockDirectVisit();
+      (global.fetch as jest.Mock).mockImplementation(() => new Promise(() => {}));
+
+      render(<AlbumPageClient />, { wrapper: TestWrapper });
+
+      expect(screen.getByRole('link', { name: OTHER_ALBUMS })).toHaveAttribute('href', '/search?artist=Mae+Muller');
+      expect(screen.queryByText('Back to Results')).not.toBeInTheDocument();
+    });
+
+    it('links to the full discography once the artist is known', async () => {
+      mockDirectVisit();
+      (global.fetch as jest.Mock).mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          links: [],
+          metadata: { title: 'Sorry I’m Late', artistName: 'Mae Muller', artistId: '13432195' },
+        }),
+      });
+
+      render(<AlbumPageClient />, { wrapper: TestWrapper });
+
+      await waitFor(() => {
+        expect(screen.getByRole('link', { name: OTHER_ALBUMS })).toHaveAttribute(
+          'href',
+          '/search?artist=Mae+Muller&artistId=13432195'
+        );
+      });
+    });
+
+    it('keeps the artist link if the buy links fail to load', async () => {
+      mockDirectVisit();
+      (global.fetch as jest.Mock).mockResolvedValueOnce({ ok: false, status: 500 });
+
+      render(<AlbumPageClient />, { wrapper: TestWrapper });
+
+      await screen.findByText('Failed to fetch buy links. Please try again.');
+      expect(screen.getByRole('link', { name: OTHER_ALBUMS })).toHaveAttribute('href', '/search?artist=Mae+Muller');
+    });
+
+    it('goes back to the results when arriving from a search', () => {
+      mockSearchParams.get.mockImplementation((key: string) => {
+        if (key === 'artist') return 'Preview Artist';
+        if (key === 'album') return 'Preview Album';
+        return null;
+      });
+      (global.fetch as jest.Mock).mockImplementation(() => new Promise(() => {}));
+
+      const PreviewWrapper = createWrapperWithPreview({
+        title: 'Preview Album',
+        artist: 'Preview Artist',
+        albumUrl: 'https://www.deezer.com/album/123',
+      });
+
+      render(<AlbumPageClient />, { wrapper: PreviewWrapper });
+
+      expect(screen.getByRole('button', { name: 'Go back to search results' })).toHaveTextContent('Back to Results');
+      expect(screen.queryByText(OTHER_ALBUMS)).not.toBeInTheDocument();
     });
   });
 
@@ -330,6 +411,35 @@ describe('AlbumPageClient', () => {
   });
 
   describe('Preview Data Functionality', () => {
+    it('keeps the clicked album without refetching when preview data is cleared', async () => {
+      mockSearchParams.get.mockImplementation((key: string) => {
+        if (key === 'artist') return 'Preview Artist';
+        if (key === 'album') return 'Preview Album';
+        return null;
+      });
+
+      (global.fetch as jest.Mock).mockImplementation(() => new Promise(() => {}));
+
+      const PreviewWrapper = createWrapperWithPreview({
+        title: 'Preview Album',
+        artist: 'Preview Artist',
+        albumUrl: 'https://www.deezer.com/album/123',
+      });
+
+      jest.useFakeTimers();
+      render(<AlbumPageClient />, { wrapper: PreviewWrapper });
+
+      // Preview data is cleared 100ms after mount
+      await act(async () => {
+        jest.advanceTimersByTime(150);
+      });
+      jest.useRealTimers();
+
+      expect(global.fetch).toHaveBeenCalledTimes(1);
+      const url = new URL((global.fetch as jest.Mock).mock.calls[0][0], 'http://localhost');
+      expect(url.searchParams.get('url')).toBe('https://www.deezer.com/album/123');
+    });
+
     it('displays preview data immediately when provided', () => {
       mockSearchParams.get.mockImplementation((key: string) => {
         if (key === 'artist') return 'Preview Artist';
@@ -354,12 +464,9 @@ describe('AlbumPageClient', () => {
       expect(screen.getByText('Preview Album')).toBeInTheDocument();
       expect(screen.getByText('Preview Artist')).toBeInTheDocument();
 
-      // Image URL should either be direct (if whitelisted) or proxied (if not)
+      // example.com isn't one of the art hosts, so it goes through the proxy
       const imageElement = screen.getByAltText('Preview Album album cover');
-      const src = imageElement.getAttribute('src');
-      const isProxied = src?.startsWith('/api/image-proxy');
-      const isDirect = src === 'https://example.com/preview.jpg';
-      expect(isProxied || isDirect).toBe(true);
+      expect(imageElement.getAttribute('src')).toContain('/api/image-proxy');
     });
 
     it('shows loading spinner when preview data is shown but not yet fetched', () => {
@@ -466,47 +573,6 @@ describe('AlbumPageClient', () => {
       expect(screen.queryByText('Preview Album')).not.toBeInTheDocument();
     });
 
-    it('shows "no buy links" message only after fetching completes with empty results', async () => {
-      mockSearchParams.get.mockImplementation((key: string) => {
-        if (key === 'artist') return 'Preview Artist';
-        if (key === 'album') return 'Preview Album';
-        return null;
-      });
-
-      const mockResponse = {
-        links: [], // No buy links
-        metadata: {
-          title: 'Actual Album',
-          artistName: 'Actual Artist',
-          artwork: 'https://example.com/actual.jpg',
-        },
-      };
-
-      (global.fetch as jest.Mock).mockResolvedValueOnce({
-        ok: true,
-        json: async () => mockResponse,
-      });
-
-      const PreviewWrapper = createWrapperWithPreview({
-        title: 'Preview Album',
-        artist: 'Preview Artist',
-        albumUrl: 'https://www.deezer.com/album/123',
-      });
-
-      render(<AlbumPageClient />, { wrapper: PreviewWrapper });
-
-      // Should not show message initially
-      expect(screen.queryByText('No buy links found for this album.')).not.toBeInTheDocument();
-
-      // Wait for fetch to complete
-      await waitFor(() => {
-        expect(screen.getByText('No buy links found for this album.')).toBeInTheDocument();
-      });
-
-      // Loading spinner should be gone
-      expect(screen.queryByText('Finding where to buy...')).not.toBeInTheDocument();
-    });
-
     it('works without preview data (standard loading flow)', async () => {
       mockSearchParams.get.mockImplementation((key: string) => {
         if (key === 'artist') return 'Radiohead';
@@ -515,22 +581,8 @@ describe('AlbumPageClient', () => {
         return null;
       });
 
-      // Mock the Deezer search API response
-      const mockSearchResponse = {
-        artist: 'Radiohead',
-        results: [
-          {
-            id: '1',
-            name: 'OK Computer',
-            url: 'https://www.deezer.com/album/123',
-            images: [{ url: 'https://example.com/ok.jpg' }],
-            artists: [{ name: 'Radiohead' }],
-          },
-        ],
-      };
-
-      // Mock songlink response
-      const mockSonglinkResponse = {
+      // Mock buy links response
+      const mockBuyLinksResponse = {
         links: [
           {
             platform: 'itunes',
@@ -546,15 +598,10 @@ describe('AlbumPageClient', () => {
         },
       };
 
-      (global.fetch as jest.Mock)
-        .mockResolvedValueOnce({
-          ok: true,
-          json: async () => mockSearchResponse,
-        })
-        .mockResolvedValueOnce({
-          ok: true,
-          json: async () => mockSonglinkResponse,
-        });
+      (global.fetch as jest.Mock).mockResolvedValueOnce({
+        ok: true,
+        json: async () => mockBuyLinksResponse,
+      });
 
       render(<AlbumPageClient />, { wrapper: TestWrapper });
 

@@ -5,6 +5,7 @@ import { Analytics } from "@vercel/analytics/react";
 import "./globals.css";
 import { KofiSupport } from "@/components/KofiSupport";
 import { SearchPreviewProvider } from "@/contexts/SearchPreviewContext";
+import { SITE_URL } from "@/lib/site-url";
 
 const inter = Inter({
   subsets: ["latin"],
@@ -27,7 +28,7 @@ export const metadata: Metadata = {
   openGraph: {
     type: "website",
     locale: "en_US",
-    url: process.env.NEXT_PUBLIC_SITE_URL || "https://stream-to-shelf.vercel.app",
+    url: SITE_URL,
     siteName: "StreamToShelf",
     title: "StreamToShelf – Find Where to Buy Music",
     description: "Find Where to Buy Music – Downloads, CDs, Vinyl & More",
@@ -57,12 +58,12 @@ export default function RootLayout({
               "@type": "WebSite",
               "name": "StreamToShelf",
               "description": "Find Where to Buy Music – Downloads, CDs, Vinyl & More",
-              "url": process.env.NEXT_PUBLIC_SITE_URL || "https://stream-to-shelf.vercel.app",
+              "url": SITE_URL,
               "potentialAction": {
                 "@type": "SearchAction",
                 "target": {
                   "@type": "EntryPoint",
-                  "urlTemplate": `${process.env.NEXT_PUBLIC_SITE_URL || "https://stream-to-shelf.vercel.app"}/search?artist={search_term_string}`
+                  "urlTemplate": `${SITE_URL}/search?artist={search_term_string}`
                 },
                 "query-input": "required name=search_term_string"
               }

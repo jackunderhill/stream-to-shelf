@@ -22,8 +22,7 @@ describe('Blog utilities', () => {
 
   describe('getBlogPostSlugs', () => {
     test('returns slugs from markdown files', () => {
-      mockFs.readdirSync.mockReturnValue(['post1.md', 'post2.md', 'not-markdown.txt'] as unknown as fs.Dirent[]);
-
+      mockFs.readdirSync.mockReturnValue(['post1.md', 'post2.md', 'not-markdown.txt'] as unknown as fs.Dirent[] as never);
       const slugs = getBlogPostSlugs();
 
       expect(slugs).toEqual(['post1', 'post2']);

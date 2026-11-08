@@ -1,40 +1,10 @@
-// Songlink API response types
-export interface SonglinkResponse {
-  entityUniqueId: string;
-  userCountry: string;
-  pageUrl: string;
-  linksByPlatform: {
-    [platform: string]: {
-      url: string;
-      entityUniqueId: string;
-      nativeAppUriMobile?: string;
-      nativeAppUriDesktop?: string;
-    };
-  };
-  entitiesByUniqueId: {
-    [uniqueId: string]: {
-      id: string;
-      type: 'song' | 'album';
-      title?: string;
-      artistName?: string;
-      thumbnailUrl?: string;
-      thumbnailWidth?: number;
-      thumbnailHeight?: number;
-      apiProvider: string;
-      platforms: string[];
-    };
-  };
-}
-
 // Our app's types
 export interface SearchResult {
-  artist?: string;
-  album?: string;
-  songlink?: SonglinkResponse;
   links: PlatformLink[];
   metadata?: {
     title: string;
     artistName: string;
+    artistId?: string;
     artwork?: string;
   };
 }
@@ -44,16 +14,11 @@ export interface PlatformLink {
   displayName: string;
   url: string;
   category: 'download' | 'physical';
-  icon?: string;
+  /** True when the link goes to the store's search page rather than the album itself */
+  isSearch?: boolean;
 }
 
 export type Region = 'US' | 'GB' | 'CA' | 'AU' | 'DE' | 'FR' | 'JP';
-
-export interface SearchParams {
-  artist: string;
-  album?: string;
-  region?: Region;
-}
 
 export interface BlogPost {
   slug: string;

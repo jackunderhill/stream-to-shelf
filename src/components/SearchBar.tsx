@@ -16,6 +16,12 @@ export default function SearchBar({ initialArtist = '', initialAlbum = '' }: Sea
   const [isPending, startTransition] = useTransition();
   const router = useRouter();
 
+  // A retyped name must drop the ID, or it would show that artist's albums under the new name
+  const handleArtistChange = (artistName: string) => {
+    setArtist(artistName);
+    setArtistId(undefined);
+  };
+
   const handleArtistSelect = (artistName: string, id?: string) => {
     setArtist(artistName);
     setArtistId(id);
@@ -46,7 +52,7 @@ export default function SearchBar({ initialArtist = '', initialAlbum = '' }: Sea
             </label>
             <ArtistAutocomplete
               value={artist}
-              onChange={setArtist}
+              onChange={handleArtistChange}
               onSelect={handleArtistSelect}
               placeholder="Enter artist name..."
               required

@@ -12,11 +12,9 @@ describe('PlatformIcon Component', () => {
     it('should render with correct color for each platform', () => {
       const platforms = [
         { platform: 'itunes', color: 'text-pink-400' },
-        { platform: 'amazonStore', color: 'text-orange-400' },
         { platform: 'amazonDigital', color: 'text-orange-400' },
         { platform: 'amazonPhysical', color: 'text-orange-400' },
         { platform: 'bandcamp', color: 'text-cyan-400' },
-        { platform: 'googleStore', color: 'text-blue-400' },
         { platform: 'discogs', color: 'text-purple-400' },
         { platform: 'hdtracks', color: 'text-green-400' },
       ];
@@ -37,7 +35,7 @@ describe('PlatformIcon Component', () => {
 
   describe('Icon Selection', () => {
     it('should render SVG icon for Amazon platforms', () => {
-      const amazonPlatforms = ['amazonStore', 'amazonDigital', 'amazonPhysical'];
+      const amazonPlatforms = ['amazonDigital', 'amazonPhysical'];
 
       amazonPlatforms.forEach(platform => {
         const { container } = render(<PlatformIcon platform={platform} />);
@@ -59,7 +57,7 @@ describe('PlatformIcon Component', () => {
     });
 
     it('should render SVG icon for store platforms', () => {
-      const storePlatforms = ['googleStore', 'discogs'];
+      const storePlatforms = ['discogs', 'banquet'];
 
       storePlatforms.forEach(platform => {
         const { container } = render(<PlatformIcon platform={platform} />);
@@ -129,11 +127,9 @@ describe('PlatformIcon Component', () => {
     it('should handle all supported platforms', () => {
       const supportedPlatforms = [
         'itunes',
-        'amazonStore',
         'amazonDigital',
         'amazonPhysical',
         'bandcamp',
-        'googleStore',
         'discogs',
         'hdtracks',
       ];

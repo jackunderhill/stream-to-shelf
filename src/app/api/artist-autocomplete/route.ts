@@ -1,25 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { deezerGet } from '@/lib/deezer';
 
-const DEEZER_ARTIST_SEARCH_URL = 'https://api.deezer.com/search/artist';
 const API_TIMEOUT = 5000;
 
 interface DeezerArtist {
   id: number;
   name: string;
   picture_medium: string;
-}
-
-async function fetchWithTimeout(url: string, timeout = API_TIMEOUT): Promise<Response> {
-  const controller = new AbortController();
-  const id = setTimeout(() => controller.abort(), timeout);
-  try {
-    const response = await fetch(url, { signal: controller.signal });
-    clearTimeout(id);
-    return response;
-  } catch (error) {
-    clearTimeout(id);
-    throw error;
-  }
 }
 
 export const dynamic = 'force-dynamic';
@@ -36,20 +23,12 @@ export async function GET(request: NextRequest) {
   const sanitizedQuery = query.trim().substring(0, 100);
 
   try {
-    const url = `${DEEZER_ARTIST_SEARCH_URL}?q=${encodeURIComponent(sanitizedQuery)}&limit=8`;
-    const response = await fetchWithTimeout(url);
+    const { data = [] } = await deezerGet<{ data?: DeezerArtist[] }>(
+      `/search/artist?q=${encodeURIComponent(sanitizedQuery)}&limit=8`,
+      API_TIMEOUT
+    );
 
-    if (!response.ok) {
-      return NextResponse.json({ error: 'Artist search failed' }, { status: 500 });
-    }
-
-    const data = await response.json();
-
-    if (!data.data) {
-      return NextResponse.json({ artists: [] });
-    }
-
-    const artists = (data.data as DeezerArtist[]).map((artist) => ({
+    const artists = data.map((artist) => ({
       id: String(artist.id),
       name: artist.name,
       imageUrl: artist.picture_medium || undefined,
@@ -65,6 +44,6 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ artists: [] });
     }
     console.error('Artist autocomplete error:', error);
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+    return NextResponse.json({ error: 'Artist search failed' }, { status: 500 });
   }
 }

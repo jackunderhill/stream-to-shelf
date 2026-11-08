@@ -1,145 +1,85 @@
 # StreamToShelf API Setup Guide
 
-## 🎵 Required API Credentials
+Search and most links work with no credentials at all. Two optional keys add direct links.
 
-### 1. Spotify API ✅ (Required)
-**Get your credentials**: https://developer.spotify.com/dashboard
+## 🔑 Optional Credentials
 
-1. Log in to Spotify Developer Dashboard
-2. Create a new app
-3. Copy your Client ID and Client Secret
-4. Add to `.env.local`:
-```env
-SPOTIFY_CLIENT_ID=your_spotify_client_id
-SPOTIFY_CLIENT_SECRET=your_spotify_client_secret
-```
-
-**What it's used for**: Searching for albums and artists, displaying album artwork and metadata
-
-**Rate limits**: Generally generous for this use case
-
-### 2. Discogs API 🎯 (Required)
+### Discogs
 **Get your token**: https://www.discogs.com/settings/developers
 
-1. Create or log in to your Discogs account
-2. Go to Settings → Developers
-3. Generate new token
-4. Add to `.env.local`:
 ```env
-DISCOGS_TOKEN=your_discogs_token_here
+DISCOGS_TOKEN=your_discogs_token
 ```
 
-**What it's used for**: Finding physical media releases (vinyl, CDs, cassettes)
+- **Used for**: Master pages, found from physical barcodes, and physical releases
+- **Without it**: Discogs uses the link from MusicBrainz if there is one, and otherwise a search link
+- **Rate limits**: 60 requests per minute
 
-**Rate limits**: 60 requests per minute (authenticated)
+### Tavily
+**Get your key**: https://app.tavily.com
 
-**Example API call:**
-```bash
-curl -H "Authorization: Discogs token=YOUR_TOKEN" \
-"https://api.discogs.com/database/search?q=Radiohead+In+Rainbows&type=release&artist=Radiohead"
+```env
+TAVILY_API_KEY=your_tavily_api_key
 ```
+
+- **Used for**: Direct links to Bandcamp, Qobuz, Banquet Records, musicMagpie, World of Books and artists' own stores, where MusicBrainz has none
+- **Without it**: Those stores use search links
+- **Credits**: Each search costs 1. The free plan has 1,000 a month, so `src/lib/tavily.ts` aims to stop at 30 a day. That's about 6 new albums a day, as a new album costs up to 5. Once the cap is reached, new albums use search links until midnight UTC. One visitor can use 15 credits a day on each server instance, leaving the rest for others. If the cache can't be read, nothing is spent. The caps are best effort, because Runtime Cache has no atomic increment, so use a Vercel Firewall rate limit on `/api/*` as well
+- **Rules**: Only ever search chosen domains, never the open web, and never request store pages directly. Every result must pass the strict matching in `src/lib/store-pages.ts`
+
+Add both to `.env.local`, and to the Vercel project before deploying. Restart the dev server after changing them.
 
 ## 🔌 APIs That Don't Require Setup
 
-### Songlink/Odesli API
-- **Status**: Active, no authentication required
-- **Used for**: Aggregating buy links from iTunes, Bandcamp, Google Play, etc.
-- **Rate limits**: Reasonable for moderate traffic
-- **Endpoint**: `https://api.song.link/v1-alpha.1/links`
+### Deezer API
+- **Used for**: Album and artist search, artwork and UPCs
+- **Endpoint**: `https://api.deezer.com`
 
-### Amazon (Direct Links)
-- **Status**: Using search URLs, no API key needed
-- **Used for**: Both digital music and physical media
-- **Region-aware**: Automatically routes to correct Amazon domain (US, UK, CA, AU, DE, FR, JP)
+### MusicBrainz API
+- **Used for**: Direct links to Bandcamp, Amazon, Qobuz, HDtracks and 7digital, physical barcodes, and artists' homepages. It's also used to confirm that Deezer profiles with the same name are the same artist
+- **Rate limits**: About 1 request per second per IP, so lookups are cached
+- **Endpoint**: `https://musicbrainz.org/ws/2`
 
-### HDtracks (Direct Links)
-- **Status**: Using search URLs, no API key needed
-- **Used for**: High-resolution audio downloads
+### iTunes Search API
+- **Used for**: Region-specific iTunes links
+- **Endpoint**: `https://itunes.apple.com`
 
-## 🚀 Quick Setup
+## 📊 Where Each Store Link Comes From
 
-1. **Copy environment template:**
-```bash
-cp .env.example .env.local
-```
+Every store falls back to its own search page, labelled "Search", so a source being down costs direct links and never the page.
 
-2. **Add your credentials to `.env.local`:**
-```env
-# Spotify (required)
-SPOTIFY_CLIENT_ID=your_spotify_client_id
-SPOTIFY_CLIENT_SECRET=your_spotify_client_secret
+| Store | Direct links from |
+|-------|-------------------|
+| iTunes | iTunes Search API |
+| Amazon, Amazon Music, HDtracks, 7digital | MusicBrainz |
+| Bandcamp, Qobuz | MusicBrainz, then Tavily |
+| Discogs | Discogs API, using barcodes from MusicBrainz |
+| Banquet Records, musicMagpie, World of Books | Tavily |
+| Artist's store, Official site | Tavily, using homepages from MusicBrainz |
 
-# Discogs (required)
-DISCOGS_TOKEN=your_discogs_token
-
-# No other API keys needed!
-```
-
-3. **Restart your dev server:**
-```bash
-npm run dev
-```
-
-## 📊 What Each API Provides
-
-| API | Provides | Auth Required | Cost |
-|-----|----------|---------------|------|
-| **Spotify** | Album search, metadata, artwork | ✅ Client credentials | Free |
-| **Songlink** | iTunes, Bandcamp, Google Play links | ❌ No | Free |
-| **Discogs** | Vinyl, CD, cassette releases | ✅ Token | Free |
-| **Amazon** | Digital & physical purchase links | ❌ No | Free |
-| **HDtracks** | Hi-res audio download links | ❌ No | Free |
+musicMagpie is only shown in the UK, as it doesn't deliver abroad.
 
 ## 🔍 Testing Your Setup
 
-**Test Spotify search:**
+**Test album search:**
 ```bash
-curl "http://localhost:3000/api/spotify-search?artist=Radiohead&album=In+Rainbows"
+curl "http://localhost:3000/api/deezer-search?artist=Radiohead&album=In+Rainbows"
 ```
 
-**Test buy links (requires Spotify URL):**
+**Test buy links** (a new album costs up to 5 Tavily credits):
 ```bash
-curl "http://localhost:3000/api/songlink?url=https://open.spotify.com/album/5vkqYmiPBYLaalcmjujWxo&region=US"
+curl "http://localhost:3000/api/buy-links?artist=Radiohead&album=OK%20Computer&region=US"
 ```
-
-**Expected response includes:**
-- Digital downloads: iTunes, Amazon Music, Bandcamp, Google Play, HDtracks
-- Physical media: Amazon, Discogs
 
 ## 🚨 Troubleshooting
 
-**"Spotify authentication failed"**
-- Double-check your Client ID and Client Secret
-- Make sure there are no extra spaces in `.env.local`
-- Restart your dev server after adding credentials
-
 **"Discogs returning 401"**
 - Verify your token at https://www.discogs.com/settings/developers
-- Check that the token is correctly copied to `.env.local`
 
-**"No physical media results"**
-- Some albums may not be available on Discogs
-- Try a different, more popular album for testing
+**Most stores show "Search"**
+- MusicBrainz is often busy. Lookups that fail are retried after 5 minutes
+- Check whether `TAVILY_API_KEY` is set, and whether the logs say that the daily budget was reached or couldn't be read
 
 **Rate limits hit:**
-- Discogs: 60/min authenticated, 25/min unauthenticated
-- Songlink: Should handle reasonable traffic
-- Spotify: Very generous limits for search
-
-## 📝 Environment Variables Reference
-
-```env
-# Required
-SPOTIFY_CLIENT_ID=        # From developer.spotify.com/dashboard
-SPOTIFY_CLIENT_SECRET=    # From developer.spotify.com/dashboard
-DISCOGS_TOKEN=            # From discogs.com/settings/developers
-
-# Optional (has defaults)
-NODE_ENV=development
-```
-
-That's it! With just Spotify and Discogs credentials, you have access to:
-- Millions of albums from Spotify's catalog
-- Digital purchase links from 5+ platforms
-- Physical media from Discogs marketplace
-- Region-aware Amazon links for all territories
+- Discogs: 60 requests per minute
+- MusicBrainz: About 1 request per second per IP. Links fall back to store searches when it is busy

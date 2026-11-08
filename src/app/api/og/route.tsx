@@ -3,11 +3,13 @@ import { NextRequest } from 'next/server';
 
 export const runtime = 'edge';
 
+const MAX_TEXT_LENGTH = 200;
+
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
-    const title = searchParams.get('title') || 'StreamToShelf';
-    const artist = searchParams.get('artist') || '';
+    const title = (searchParams.get('title') || 'StreamToShelf').slice(0, MAX_TEXT_LENGTH);
+    const artist = (searchParams.get('artist') || '').slice(0, MAX_TEXT_LENGTH);
 
     return new ImageResponse(
       (
@@ -119,6 +121,6 @@ export async function GET(request: NextRequest) {
   } catch (e: unknown) {
     const errorMessage = e instanceof Error ? e.message : String(e);
     console.error('Error generating OG image:', errorMessage);
-    return new Response(`Failed to generate image: ${errorMessage}`, { status: 500 });
+    return new Response('Failed to generate image', { status: 500 });
   }
 }

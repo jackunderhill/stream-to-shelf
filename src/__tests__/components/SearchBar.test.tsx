@@ -19,6 +19,40 @@ describe('SearchBar Component', () => {
     });
   });
 
+  describe('Choosing an artist from the suggestions', () => {
+    const chooseRadiohead = async (user: ReturnType<typeof userEvent.setup>) => {
+      global.fetch = jest.fn().mockResolvedValue({
+        ok: true,
+        json: async () => ({ artists: [{ id: '399', name: 'Radiohead' }] }),
+      });
+
+      await user.type(screen.getByLabelText(/artist/i), 'Radio');
+      await user.click(await screen.findByText('Radiohead'));
+    };
+
+    it('should search by the chosen artist', async () => {
+      const user = userEvent.setup();
+      render(<SearchBar />);
+
+      await chooseRadiohead(user);
+      await user.click(screen.getByRole('button', { name: /find music stores/i }));
+
+      await waitFor(() => expect(mockPush).toHaveBeenCalledWith('/search?artist=Radiohead&artistId=399'));
+    });
+
+    it('should forget the chosen artist if the name is changed', async () => {
+      const user = userEvent.setup();
+      render(<SearchBar />);
+
+      await chooseRadiohead(user);
+      await user.clear(screen.getByLabelText(/artist/i));
+      await user.type(screen.getByLabelText(/artist/i), 'Portishead');
+      await user.click(screen.getByRole('button', { name: /find music stores/i }));
+
+      await waitFor(() => expect(mockPush).toHaveBeenCalledWith('/search?artist=Portishead'));
+    });
+  });
+
   describe('Rendering', () => {
     it('should render all form elements', () => {
       render(<SearchBar />);

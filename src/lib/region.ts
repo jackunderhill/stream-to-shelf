@@ -1,5 +1,9 @@
 import { Region } from '@/types';
 
+const REGIONS: readonly string[] = ['US', 'GB', 'CA', 'AU', 'DE', 'FR', 'JP'] satisfies Region[];
+
+export const isRegion = (region: string): region is Region => REGIONS.includes(region);
+
 /**
  * Maps language codes to supported regions
  */

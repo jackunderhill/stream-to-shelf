@@ -1,6 +1,7 @@
 import { Metadata } from 'next';
 import { Suspense } from 'react';
 import SearchPageClient from './SearchPageClient';
+import { SITE_URL } from '@/lib/site-url';
 
 type Props = {
   searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
@@ -22,7 +23,7 @@ export async function generateMetadata({ searchParams }: Props): Promise<Metadat
   const description = `Browse albums by ${artist}${album ? ` matching "${album}"` : ''}. Find where to buy as digital downloads, vinyl, CD, and more.`;
 
   // Use environment variable for base URL, fallback to Vercel URL
-  const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://stream-to-shelf.vercel.app';
+  const baseUrl = SITE_URL;
 
   // Build OG image URL using URL constructor for proper encoding
   const ogImageUrl = new URL('/api/og', baseUrl);

@@ -1,12 +1,12 @@
 # StreamToShelf – Find Where to Buy Music
 
-StreamToShelf helps music lovers find where to buy their favorite albums - both digital downloads and physical media (vinyl, CDs, cassettes). Search for any artist on Spotify, then see all the places you can purchase that music.
+StreamToShelf helps music lovers find where to buy their favorite albums - both digital downloads and physical media (vinyl, CDs, cassettes). Search for any artist, then see all the places you can purchase that music.
 
 ## 🎵 Features
 
-- **Spotify-Powered Search**: Search for albums and singles using Spotify's comprehensive catalog
-- **Two-Step Discovery**: Browse Spotify results, then click to see all purchase options
-- **Digital & Physical**: Find digital downloads (iTunes, Amazon Music, Bandcamp, HDtracks) and physical media (Amazon, Discogs)
+- **Album Search**: Search for albums and singles using Deezer's catalog
+- **Two-Step Discovery**: Browse results, then click to see all purchase options
+- **Digital & Physical**: Find digital downloads (iTunes, Amazon Music, Bandcamp, HDtracks, 7digital, Qobuz) and physical media (Amazon, Discogs, Banquet Records, World of Books, musicMagpie, artists' own stores)
 - **Region Support**: Localized results for US, UK, Canada, Australia, Germany, France, and Japan
 - **Organized Results**: Buy links grouped by format (Digital Downloads vs Physical Media)
 - **Blog Content**: Educational articles about buying and owning music
@@ -15,7 +15,7 @@ StreamToShelf helps music lovers find where to buy their favorite albums - both 
 
 ### Prerequisites
 
-- Node.js 18+
+- Node.js 20.9+
 - npm or yarn
 
 ### Installation
@@ -36,11 +36,10 @@ npm install
 cp .env.example .env.local
 ```
 
-4. Edit `.env.local` with your API credentials:
+4. Optionally, edit `.env.local` to add direct links to more stores:
 ```env
-SPOTIFY_CLIENT_ID=your_spotify_client_id
-SPOTIFY_CLIENT_SECRET=your_spotify_client_secret
 DISCOGS_TOKEN=your_discogs_token
+TAVILY_API_KEY=your_tavily_api_key
 ```
 
 5. Start the development server:
@@ -68,10 +67,10 @@ npm run test:coverage # Run tests with coverage report
 src/
 ├── app/
 │   ├── api/
-│   │   ├── spotify-search/   # Spotify search API endpoint
-│   │   └── songlink/         # Buy links aggregation
+│   │   ├── deezer-search/    # Deezer search API endpoint
+│   │   └── buy-links/        # Buy links aggregation
 │   ├── blog/[...slug]/       # Dynamic blog routes
-│   ├── search/               # Spotify search results page
+│   ├── search/               # Deezer search results page
 │   ├── album/                # Album buy links page
 │   ├── layout.tsx            # Root layout with SEO
 │   └── page.tsx              # Home page
@@ -88,33 +87,43 @@ content/                      # Markdown blog posts
 
 ## 🔌 API Integration
 
-### Spotify API
+### Deezer API
 - **Purpose**: Album and artist search
-- **Authentication**: Client credentials flow
-- **Used for**: Finding albums and metadata
-
-### Songlink/Odesli API
-- **Purpose**: Aggregating streaming and purchase links
 - **Authentication**: None required
-- **Used for**: iTunes, Bandcamp, Google Play links
+- **Used for**: Finding albums, metadata and UPCs
+
+### MusicBrainz API
+- **Purpose**: Direct store links recorded by its community
+- **Authentication**: None required, but limited to about 1 request per second per IP
+- **Used for**: Bandcamp, Amazon, Qobuz, HDtracks, 7digital and Discogs links
+
+### iTunes Search API
+- **Purpose**: iTunes store links
+- **Authentication**: None required
+- **Used for**: Region-specific album links
 
 ### Discogs API
 - **Purpose**: Physical media releases
-- **Authentication**: Token required
-- **Used for**: Vinyl, CD, cassette links
+- **Authentication**: Token recommended
+- **Used for**: Master pages, found from physical barcodes
 
-### Custom Integrations
-- **Amazon**: Search URLs for both digital and physical media
-- **HDtracks**: High-resolution audio downloads
+### Tavily
+- **Purpose**: Finding album pages on stores with no API
+- **Authentication**: API key, with 1,000 free searches a month
+- **Used for**: Bandcamp, Qobuz, Banquet Records, musicMagpie, World of Books and artists' own stores. It only ever searches those sites, and results must pass strict matching in `src/lib/store-pages.ts`
 
 ## 🔍 How It Works
 
 1. **User searches** for an artist/album on the home page
-2. **Spotify API** returns matching albums and singles
+2. **Deezer API** returns matching albums and singles
 3. **User clicks** an album to see purchase options
-4. **Songlink API** provides digital store links (iTunes, Bandcamp, etc.)
-5. **Discogs API** adds physical media options
-6. **Results displayed** grouped by format (Digital Downloads / Physical Media)
+4. **Deezer API** provides the album's UPC, which identifies it exactly in other catalogs
+5. **MusicBrainz and iTunes** provide direct store links, cached by UPC
+6. **Discogs API** gives the master page for a physical barcode, then checks known releases, then searches by name
+7. **Tavily** finds direct links on stores with no API, searching only those stores
+8. **Results displayed** grouped by format (Digital Downloads / Physical Media), with a store search link wherever we don't have a direct link
+
+Bandcamp links come from MusicBrainz or Tavily's search index, or are search links that the user opens. Bandcamp's Acceptable Use Policy prohibits scraping, and its API doesn't offer search, so we never call Bandcamp from the server.
 
 ## 📝 Adding Blog Posts
 
@@ -161,9 +170,8 @@ npm run test:coverage # Coverage report
 
 1. Connect your GitHub repository to Vercel
 2. Set environment variables in Vercel dashboard:
-   - `SPOTIFY_CLIENT_ID`
-   - `SPOTIFY_CLIENT_SECRET`
    - `DISCOGS_TOKEN`
+   - `TAVILY_API_KEY`
 
 3. Deploy automatically on push to main branch
 
@@ -178,9 +186,9 @@ npm start
 
 | Variable | Required | Description |
 |----------|----------|-------------|
-| `SPOTIFY_CLIENT_ID` | Yes | Spotify API client ID |
-| `SPOTIFY_CLIENT_SECRET` | Yes | Spotify API client secret |
-| `DISCOGS_TOKEN` | Yes | Discogs API token |
+| `NEXT_PUBLIC_SITE_URL` | No | Site URL for metadata, defaults to https://streamtoshelf.com |
+| `DISCOGS_TOKEN` | Recommended | Discogs API token |
+| `TAVILY_API_KEY` | Optional | Direct links for stores with no API |
 
 ## 🎯 SEO Features
 
@@ -213,4 +221,4 @@ This project is licensed under the MIT License.
 
 ---
 
-Built with Next.js 15, TypeScript, and Tailwind CSS.
+Built with Next.js 16, TypeScript, and Tailwind CSS.

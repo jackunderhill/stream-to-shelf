@@ -58,7 +58,8 @@ export default function SearchPageClient() {
         setError('Failed to fetch results. Please try again.');
         console.error(err);
       } finally {
-        setLoading(false);
+        // An aborted request has been replaced, and the new one is still loading
+        if (!abortController.signal.aborted) setLoading(false);
       }
     };
 
@@ -182,7 +183,8 @@ export default function SearchPageClient() {
                         </p>
                         <div className="flex items-center justify-between text-xs text-gray-500">
                           <span className="capitalize">{albumItem.album_type === 'ep' ? 'EP' : albumItem.album_type}</span>
-                          {albumItem.release_date && <span>{new Date(albumItem.release_date).getFullYear()}</span>}
+                          {/* Parsing the date would move New Year's Day releases back a year west of UTC */}
+                          {albumItem.release_date && <span>{albumItem.release_date.slice(0, 4)}</span>}
                         </div>
                       </div>
                     </article>
